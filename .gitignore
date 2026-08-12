@@ -1,0 +1,32 @@
+# --- Python / Django (backend) ---
+__pycache__/
+*.py[cod]
+*.sqlite3
+backend/.env
+backend/venv/
+backend/staticfiles/
+backend/media/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Flutter (frontend) ---
+frontend/**/build/
+frontend/**/.dart_tool/
+frontend/**/.flutter-plugins
+frontend/**/.flutter-plugins-dependencies
+frontend/**/.packages
+frontend/**/*.iml
+frontend/**/android/local.properties
+frontend/**/ios/Flutter/Generated.xcconfig
+
+# --- Env / secrets (jamais commités) ---
+.env
+*.env.local
+
+# --- Éditeurs / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
