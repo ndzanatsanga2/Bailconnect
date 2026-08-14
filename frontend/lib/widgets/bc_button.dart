@@ -23,13 +23,14 @@ class BcButton extends StatelessWidget {
   });
 
   Color get _background => switch (variant) {
-        BcButtonVariant.primary => AppColors.green,
-        BcButtonVariant.amber => AppColors.amber,
-        BcButtonVariant.whatsapp => AppColors.whatsapp,
-        BcButtonVariant.ghost => AppColors.paper,
-      };
+    BcButtonVariant.primary => AppColors.green,
+    BcButtonVariant.amber => AppColors.amber,
+    BcButtonVariant.whatsapp => AppColors.whatsapp,
+    BcButtonVariant.ghost => AppColors.paper,
+  };
 
-  Color get _foreground => variant == BcButtonVariant.ghost ? AppColors.greenDark : Colors.white;
+  Color get _foreground =>
+      variant == BcButtonVariant.ghost ? AppColors.greenDark : Colors.white;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +44,11 @@ class BcButton extends StatelessWidget {
         ],
         Text(
           label,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _foreground),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: _foreground,
+          ),
         ),
       ],
     );
@@ -53,12 +58,19 @@ class BcButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: _background,
         foregroundColor: _foreground,
-        elevation: variant == BcButtonVariant.ghost ? 0 : 2,
+        disabledBackgroundColor: variant == BcButtonVariant.ghost
+            ? AppColors.paper
+            : AppColors.line,
+        disabledForegroundColor: AppColors.sub,
+        elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 22),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(14),
           side: variant == BcButtonVariant.ghost
-              ? const BorderSide(color: AppColors.green, width: 1.8)
+              ? BorderSide(
+                  color: onPressed == null ? AppColors.line : AppColors.green,
+                  width: 1.8,
+                )
               : BorderSide.none,
         ),
       ),

@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -9,6 +7,33 @@ from users.models import OTPCode, User
 from users.services.otp import channel_for, generate_and_send_otp, verify_otp
 
 pytestmark = pytest.mark.django_db
+
+VALID_PASSWORD = "Correcth0rse9"
+
+
+def _set_next_code(identifier: str, code: str):
+    generate_and_send_otp(identifier)
+    otp = OTPCode.objects.filter(identifier=identifier).latest("created_at")
+    otp.set_code(code)
+    otp.save(update_fields=["code_hash"])
+
+
+def _register_client(client, *, phone="+237600000100", email="client@example.com", city="Bastos", full_name="Awa Client", password=VALID_PASSWORD):
+    _set_next_code(phone, "111111")
+    return client.post("/api/auth/register/", {
+        "role": "locataire", "phone_number": phone, "email": email,
+        "code": "111111", "full_name": full_name, "city": city,
+        "password": password, "password_confirm": password,
+    })
+
+
+def _register_annonceur(client, *, phone="+237600000200", email="bailleur@example.com", whatsapp="+237600000201", annonceur_type="bailleur", full_name="Awa Bailleur", password=VALID_PASSWORD):
+    _set_next_code(phone, "222222")
+    return client.post("/api/auth/register/", {
+        "role": "annonceur", "phone_number": phone, "email": email,
+        "code": "222222", "full_name": full_name, "whatsapp_number": whatsapp, "annonceur_type": annonceur_type,
+        "password": password, "password_confirm": password,
+    })
 
 
 class TestOTPService:
@@ -21,6 +46,8 @@ class TestOTPService:
         assert verify_otp("+237600000002", "000000") is False
 
     def test_verify_with_expired_code_fails(self):
+        from datetime import timedelta
+
         otp, code = generate_and_send_otp("+237600000003")
         otp.expires_at = timezone.now() - timedelta(minutes=1)
         otp.save(update_fields=["expires_at"])
@@ -43,52 +70,7 @@ class TestOTPService:
         assert verify_otp("user@example.com", code) is True
 
 
-class TestOTPEndpoints:
-    def test_verify_by_phone_creates_user_and_returns_token(self):
-        _, code = generate_and_send_otp("+237600000010")
-        client = APIClient()
-        response = client.post(
-            "/api/auth/otp/verify/", {"phone_number": "+237600000010", "code": code}
-        )
-        assert response.status_code == 200
-        assert response.data["token"]
-        assert response.data["user"]["phone_number"] == "+237600000010"
-        assert User.objects.filter(phone_number="+237600000010").exists()
-
-    def test_verify_by_email_creates_user_and_returns_token(self):
-        _, code = generate_and_send_otp("user@example.com")
-        client = APIClient()
-        response = client.post(
-            "/api/auth/otp/verify/", {"email": "user@example.com", "code": code}
-        )
-        assert response.status_code == 200
-        assert response.data["token"]
-        assert response.data["user"]["email"] == "user@example.com"
-        assert User.objects.filter(email="user@example.com").exists()
-
-    def test_request_and_verify_tolerate_spaces_in_phone_number(self):
-        client = APIClient()
-        client.post("/api/auth/otp/request/", {"phone_number": "+237 600 000 012"})
-        otp = OTPCode.objects.filter(identifier="+237600000012").latest("created_at")
-        code = "000000"
-        otp.set_code(code)
-        otp.save(update_fields=["code_hash"])
-
-        response = client.post(
-            "/api/auth/otp/verify/", {"phone_number": "+237-600-000-012", "code": code}
-        )
-
-        assert response.status_code == 200
-        assert User.objects.filter(phone_number="+237600000012").exists()
-
-    def test_verify_with_invalid_code_returns_400(self):
-        client = APIClient()
-        client.post("/api/auth/otp/request/", {"phone_number": "+237600000011"})
-        response = client.post(
-            "/api/auth/otp/verify/", {"phone_number": "+237600000011", "code": "000000"}
-        )
-        assert response.status_code == 400
-
+class TestOTPRequestEndpoint:
     def test_request_without_identifier_returns_400(self):
         client = APIClient()
         response = client.post("/api/auth/otp/request/", {})
@@ -105,6 +87,232 @@ class TestOTPEndpoints:
         assert response.status_code == 401
 
 
+class TestRegisterClient:
+    def test_register_client_creates_locataire_with_all_fields(self):
+        client = APIClient()
+        response = _register_client(client)
+
+        assert response.status_code == 201
+        assert response.data["token"]
+        user_data = response.data["user"]
+        assert user_data["role"] == "locataire"
+        assert user_data["is_annonceur"] is False
+        assert user_data["city"] == "Bastos"
+        assert "password" not in user_data
+
+        user = User.objects.get(phone_number="+237600000100")
+        assert user.check_password(VALID_PASSWORD)
+
+    def test_register_client_requires_valid_city(self):
+        client = APIClient()
+        response = _register_client(client, city="Quartier inconnu")
+        assert response.status_code == 400
+
+    def test_register_with_mismatched_passwords_fails(self):
+        client = APIClient()
+        _set_next_code("+237600000104", "111111")
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000104", "email": "mismatch@example.com",
+            "code": "111111", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": "different-pass1",
+        })
+        assert response.status_code == 400
+
+    def test_register_with_weak_password_fails(self):
+        client = APIClient()
+        _set_next_code("+237600000105", "111111")
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000105", "email": "weak@example.com",
+            "code": "111111", "full_name": "X", "city": "Odza",
+            "password": "12345678", "password_confirm": "12345678",
+        })
+        assert response.status_code == 400
+
+    def test_register_with_wrong_code_fails(self):
+        client = APIClient()
+        _set_next_code("+237600000101", "111111")
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000101", "email": "wrongcode@example.com",
+            "code": "000000", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 400
+
+    def test_register_with_existing_phone_or_email_fails(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000102", email="dup@example.com")
+        response = _register_client(client, phone="+237600000102", email="autre@example.com")
+        assert response.status_code == 400
+
+    def test_register_cannot_grant_admin_role(self):
+        client = APIClient()
+        _set_next_code("+237600000103", "111111")
+        response = client.post("/api/auth/register/", {
+            "role": "admin", "phone_number": "+237600000103", "email": "admin-try@example.com",
+            "code": "111111", "full_name": "X",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 400
+
+
+class TestRegisterAnnonceur:
+    def test_register_annonceur_creates_account_with_whatsapp_and_type(self):
+        client = APIClient()
+        response = _register_annonceur(client)
+
+        assert response.status_code == 201
+        user_data = response.data["user"]
+        assert user_data["role"] == "annonceur"
+        assert user_data["is_annonceur"] is True
+        assert user_data["whatsapp_number"] == "+237600000201"
+        assert user_data["annonceur_type"] == "bailleur"
+
+    def test_register_annonceur_requires_whatsapp_and_type(self):
+        client = APIClient()
+        _set_next_code("+237600000202", "111111")
+        response = client.post("/api/auth/register/", {
+            "role": "annonceur", "phone_number": "+237600000202", "email": "noannonceurfields@example.com",
+            "code": "111111", "full_name": "X",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 400
+
+
+class TestLogin:
+    def test_login_by_email_with_correct_password_succeeds(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000010", email="login1@example.com")
+
+        response = client.post("/api/auth/login/", {"email": "login1@example.com", "password": VALID_PASSWORD})
+
+        assert response.status_code == 200
+        assert response.data["token"]
+
+    def test_login_by_phone_with_correct_password_succeeds(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000011", email="login2@example.com")
+
+        response = client.post("/api/auth/login/", {"phone_number": "+237600000011", "password": VALID_PASSWORD})
+
+        assert response.status_code == 200
+
+    def test_login_with_wrong_password_fails_generically(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000012", email="login3@example.com")
+
+        response = client.post("/api/auth/login/", {"email": "login3@example.com", "password": "wrong-password1"})
+
+        assert response.status_code == 400
+        assert "incorrect" in response.data["detail"].lower()
+
+    def test_login_with_unknown_identifier_fails_with_same_generic_message(self):
+        client = APIClient()
+        response = client.post("/api/auth/login/", {"email": "nobody@example.com", "password": "whatever-123"})
+        assert response.status_code == 400
+        assert "incorrect" in response.data["detail"].lower()
+
+    def test_repeated_failed_logins_lock_account(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000013", email="login4@example.com")
+        for _ in range(5):
+            client.post("/api/auth/login/", {"email": "login4@example.com", "password": "wrong-password1"})
+
+        response = client.post("/api/auth/login/", {"email": "login4@example.com", "password": VALID_PASSWORD})
+
+        assert response.status_code == 423
+
+    def test_successful_login_resets_failed_attempts(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000014", email="login5@example.com")
+        client.post("/api/auth/login/", {"email": "login5@example.com", "password": "wrong-password1"})
+
+        response = client.post("/api/auth/login/", {"email": "login5@example.com", "password": VALID_PASSWORD})
+
+        assert response.status_code == 200
+        user = User.objects.get(email="login5@example.com")
+        assert user.login_failed_attempts == 0
+        assert user.login_locked_until is None
+
+
+class TestPasswordReset:
+    def test_reset_password_with_valid_otp_succeeds_and_can_login_with_new_password(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000110", email="reset1@example.com")
+        _set_next_code("reset1@example.com", "333333")
+
+        new_password = "NewSecure-99"
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "reset1@example.com", "code": "333333",
+            "new_password": new_password, "new_password_confirm": new_password,
+        })
+
+        assert response.status_code == 200
+        assert response.data["token"]
+
+        login_response = APIClient().post("/api/auth/login/", {"email": "reset1@example.com", "password": new_password})
+        assert login_response.status_code == 200
+
+        old_password_response = APIClient().post("/api/auth/login/", {"email": "reset1@example.com", "password": VALID_PASSWORD})
+        assert old_password_response.status_code == 400
+
+    def test_reset_password_with_invalid_code_fails(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000111", email="reset2@example.com")
+
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "reset2@example.com", "code": "000000",
+            "new_password": "NewSecure-99", "new_password_confirm": "NewSecure-99",
+        })
+
+        assert response.status_code == 400
+
+    def test_reset_password_for_unknown_identifier_returns_404(self):
+        client = APIClient()
+        _set_next_code("unknown-reset@example.com", "444444")
+
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "unknown-reset@example.com", "code": "444444",
+            "new_password": "NewSecure-99", "new_password_confirm": "NewSecure-99",
+        })
+
+        assert response.status_code == 404
+
+    def test_reset_password_with_mismatched_confirmation_fails(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000112", email="reset3@example.com")
+        _set_next_code("reset3@example.com", "555555")
+
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "reset3@example.com", "code": "555555",
+            "new_password": "NewSecure-99", "new_password_confirm": "Different-99",
+        })
+
+        assert response.status_code == 400
+
+
+class TestBecomeAnnonceur:
+    def test_locataire_can_add_annonceur_capacity(self):
+        client = APIClient()
+        register_response = _register_client(client, phone="+237600000300", email="upgrade@example.com")
+        client.credentials(HTTP_AUTHORIZATION=f"Token {register_response.data['token']}")
+
+        response = client.post("/api/auth/capacity/annonceur/", {
+            "whatsapp_number": "+237600000301", "annonceur_type": "agent",
+        })
+
+        assert response.status_code == 200
+        assert response.data["is_annonceur"] is True
+        assert response.data["annonceur_type"] == "agent"
+        assert response.data["role"] == "locataire"
+
+    def test_unauthenticated_cannot_add_capacity(self):
+        client = APIClient()
+        response = client.post("/api/auth/capacity/annonceur/", {
+            "whatsapp_number": "+237600000302", "annonceur_type": "agent",
+        })
+        assert response.status_code == 401
+
+
 class TestRolePermissions:
     def test_role_choices_cover_expected_roles(self):
         assert set(User.Role.values) == {"locataire", "annonceur", "admin"}
@@ -118,15 +326,6 @@ class TestRolePermissions:
         assert admin.role == User.Role.ADMIN
         assert admin.is_staff is True
         assert admin.is_superuser is True
-
-    def test_public_otp_verify_cannot_grant_admin_role(self):
-        _, code = generate_and_send_otp("+237600000022")
-        client = APIClient()
-        response = client.post(
-            "/api/auth/otp/verify/",
-            {"phone_number": "+237600000022", "code": code, "role": "admin"},
-        )
-        assert response.status_code == 400
 
 
 class TestUserIdentifiers:

@@ -35,7 +35,13 @@ class BcListingCard extends StatelessWidget {
           color: AppColors.paper,
           border: Border.all(color: AppColors.line),
           borderRadius: BorderRadius.circular(17),
-          boxShadow: [BoxShadow(color: AppColors.ink.withValues(alpha: 0.07), blurRadius: 16, offset: const Offset(0, 5))],
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: 0.07),
+              blurRadius: 16,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -45,25 +51,55 @@ class BcListingCard extends StatelessWidget {
               height: 132,
               child: Stack(
                 children: [
-                  Container(decoration: BoxDecoration(gradient: thumbnailGradient)),
+                  Container(
+                    decoration: BoxDecoration(gradient: thumbnailGradient),
+                  ),
                   Positioned(
                     top: 10,
                     left: 10,
-                    child: _pillTag(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const BcIcon('pin', size: 12, color: Colors.white),
-                      const SizedBox(width: 4),
-                      Text(neighborhood, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                    ])),
+                    child: _pillTag(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const BcIcon('pin', size: 12, color: Colors.white),
+                          const SizedBox(width: 4),
+                          Text(
+                            neighborhood,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   if (durationLabel != null)
                     Positioned(
                       bottom: 10,
                       right: 10,
-                      child: _pillTag(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const BcIcon('video', size: 11, color: Colors.white),
-                        const SizedBox(width: 4),
-                        Text(durationLabel!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                      ])),
+                      child: _pillTag(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const BcIcon(
+                              'video',
+                              size: 11,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              durationLabel!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -77,7 +113,13 @@ class BcListingCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                       BcStatusBadge(status),
                     ],
@@ -89,9 +131,22 @@ class BcListingCard extends StatelessWidget {
                     children: [
                       for (final pill in pills)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(color: AppColors.greenLight, borderRadius: BorderRadius.circular(8)),
-                          child: Text(pill, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.greenDark)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.greenLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            pill,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.greenDark,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -107,7 +162,10 @@ class BcListingCard extends StatelessWidget {
   Widget _pillTag({required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: child,
     );
   }

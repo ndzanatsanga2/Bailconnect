@@ -51,6 +51,8 @@ class TestAdminAccess:
         response = client.get("/api/admin/dashboard/")
         assert response.status_code == 200
         assert "listings_pending_count" in response.data
+        assert len(response.data["listings_published_by_day"]) == 14
+        assert len(response.data["signups_by_day"]) == 14
 
 
 class TestAdminListingModeration:
@@ -62,7 +64,7 @@ class TestAdminListingModeration:
 
         response = client.get("/api/admin/listings/")
 
-        titles = {item["title"] for item in response.data}
+        titles = {item["title"] for item in response.data["results"]}
         assert titles == {"Bien A", "Bien B"}
 
     def test_admin_can_approve_listing(self):
@@ -122,8 +124,20 @@ class TestAdminUsers:
 
         response = client.get("/api/admin/users/", {"role": "annonceur"})
 
-        assert all(item["role"] == "annonceur" for item in response.data)
-        assert len(response.data) == 1
+        assert all(item["role"] == "annonceur" for item in response.data["results"])
+        assert response.data["count"] == 1
+
+    def test_admin_can_search_users(self):
+        make_annonceur("+237600000923")
+        User.objects.filter(phone_number="+237600000923").update(full_name="Ateba Marie")
+        make_locataire("+237600000924")
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000925"))
+
+        response = client.get("/api/admin/users/", {"search": "Ateba"})
+
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["full_name"] == "Ateba Marie"
 
 
 class TestAdminInvitations:
@@ -149,7 +163,7 @@ class TestAdminInvitations:
 
         response = client.get("/api/admin/invitations/")
 
-        assert len(response.data) == 1
+        assert response.data["count"] == 1
 
 
 class TestAdminReports:
@@ -163,7 +177,7 @@ class TestAdminReports:
         client.force_authenticate(make_admin("+237600000942"))
 
         list_response = client.get("/api/admin/reports/")
-        assert len(list_response.data) == 1
+        assert list_response.data["count"] == 1
 
         resolve_response = client.post(f"/api/admin/reports/{report.id}/resolve/", {"status": "traite"})
         assert resolve_response.status_code == 200

@@ -33,7 +33,10 @@ class BcWordmark extends StatelessWidget {
         ),
         children: [
           const TextSpan(text: 'bailconnect'),
-          TextSpan(text: '.', style: TextStyle(color: AppColors.amber)),
+          TextSpan(
+            text: '.',
+            style: TextStyle(color: AppColors.amber),
+          ),
         ],
       ),
     );
@@ -74,6 +77,10 @@ class BcLogoFull extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset('assets/logo/lockup.png', width: width, fit: BoxFit.contain);
+    return Image.asset(
+      'assets/logo/lockup.png',
+      width: width,
+      fit: BoxFit.contain,
+    );
   }
 }

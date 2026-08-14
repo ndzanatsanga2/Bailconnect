@@ -255,6 +255,39 @@ class TestFavorites:
         assert response.status_code == 204
         assert client.get("/api/favorites/").data == []
 
+    def test_favoriting_twice_is_idempotent(self):
+        listing = make_published_listing(owner=make_annonceur("+237600000166"))
+        client = APIClient()
+        client.force_authenticate(make_locataire("+237600000167"))
+
+        first = client.post("/api/favorites/", {"listing_id": listing.id})
+        second = client.post("/api/favorites/", {"listing_id": listing.id})
+
+        assert first.status_code == 201
+        assert second.status_code == 201
+        assert first.data["id"] == second.data["id"]
+        assert len(client.get("/api/favorites/").data) == 1
+
+    def test_locataire_can_remove_favorite_by_listing_id(self):
+        listing = make_published_listing(owner=make_annonceur("+237600000168"))
+        client = APIClient()
+        client.force_authenticate(make_locataire("+237600000169"))
+        client.post("/api/favorites/", {"listing_id": listing.id})
+
+        response = client.delete(f"/api/favorites/by-listing/{listing.id}/")
+
+        assert response.status_code == 204
+        assert client.get("/api/favorites/").data == []
+
+    def test_remove_favorite_by_listing_id_when_not_favorited_returns_404(self):
+        listing = make_published_listing(owner=make_annonceur("+237600000171"))
+        client = APIClient()
+        client.force_authenticate(make_locataire("+237600000172"))
+
+        response = client.delete(f"/api/favorites/by-listing/{listing.id}/")
+
+        assert response.status_code == 404
+
 
 class TestListingFreshness:
     def test_owner_can_confirm_available_and_it_refreshes_and_unexpires(self):

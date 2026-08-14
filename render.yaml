@@ -1,0 +1,53 @@
+# Blueprint Render (optionnel) — configuration en un clic du backend +
+# d'une base Postgres managée. Peut aussi être fait manuellement dans le
+# dashboard Render en suivant le même détail de variables (voir DEPLOY.md).
+databases:
+  - name: bailconnect-db
+    plan: free
+    postgresMajorVersion: 16
+
+services:
+  - type: web
+    name: bailconnect-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi --log-file - --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bailconnect-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DJANGO_ADMIN_ENABLED
+        value: "False"
+      - key: DJANGO_ADMIN_URL
+        sync: false
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SMS_PROVIDER
+        value: console
+      - key: EMAIL_PROVIDER
+        value: console

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../data/api_client.dart';
 import '../../data/feed_repository.dart';
+import '../../data/neighborhoods.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_icon.dart';
-
-const _yaoundeNeighborhoods = ['Bastos', 'Nlongkak', 'Biyem-Assi', 'Essos', 'Mendong'];
 
 const _propertyTypes = [
   ('studio', 'Studio'),
@@ -43,12 +42,14 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _apply() {
-    widget.onSearch(FeedFilters(
-      neighborhood: _neighborhood,
-      budgetMax: _budgetMax.round(),
-      propertyType: _propertyType,
-      amenityIds: _selectedAmenities.toList(),
-    ));
+    widget.onSearch(
+      FeedFilters(
+        neighborhood: _neighborhood,
+        budgetMax: _budgetMax.round(),
+        propertyType: _propertyType,
+        amenityIds: _selectedAmenities.toList(),
+      ),
+    );
   }
 
   @override
@@ -59,30 +60,61 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Rechercher', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.4)),
+            const Text(
+              'Rechercher',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+              ),
+            ),
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFEEF2F0), border: Border.all(color: AppColors.line), borderRadius: BorderRadius.circular(13)),
-              child: Row(children: [
-                const BcIcon('search', size: 16, color: AppColors.sub),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    decoration: const InputDecoration(border: InputBorder.none, hintText: 'Quartier à Yaoundé…'),
-                    onChanged: (v) => setState(() => _neighborhood = v),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEEF2F0),
+                border: Border.all(color: AppColors.line),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Row(
+                children: [
+                  const BcIcon('search', size: 16, color: AppColors.sub),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Quartier à Yaoundé…',
+                      ),
+                      onChanged: (v) => setState(() => _neighborhood = v),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              BcChip(label: 'Tout Yaoundé', selected: _neighborhood == null || _neighborhood!.isEmpty, onTap: () => setState(() => _neighborhood = null)),
-              for (final n in _yaoundeNeighborhoods)
-                BcChip(label: n, selected: _neighborhood == n, onTap: () => setState(() => _neighborhood = n)),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                BcChip(
+                  label: kYaoundeAll,
+                  selected: _neighborhood == null || _neighborhood!.isEmpty,
+                  onTap: () => setState(() => _neighborhood = null),
+                ),
+                for (final n in kYaoundeNeighborhoods)
+                  BcChip(
+                    label: n,
+                    selected: _neighborhood == n,
+                    onTap: () => setState(() => _neighborhood = n),
+                  ),
+              ],
+            ),
             const SizedBox(height: 22),
-            const Text('Budget max (FCFA)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+            const Text(
+              'Budget max (FCFA)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
             Slider(
               value: _budgetMax,
               min: 0,
@@ -95,20 +127,48 @@ class _SearchScreenState extends State<SearchScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('0 F', style: TextStyle(color: AppColors.sub, fontSize: 11)),
-                Text('${_budgetMax.round()} F', style: const TextStyle(color: AppColors.greenDark, fontWeight: FontWeight.w800, fontSize: 12)),
+                const Text(
+                  '0 F',
+                  style: TextStyle(color: AppColors.sub, fontSize: 11),
+                ),
+                Text(
+                  '${_budgetMax.round()} F',
+                  style: const TextStyle(
+                    color: AppColors.greenDark,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 14),
-            const Text('Type de bien', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+            const Text(
+              'Type de bien',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              BcChip(label: 'Tous', selected: _propertyType == null, onTap: () => setState(() => _propertyType = null)),
-              for (final t in _propertyTypes)
-                BcChip(label: t.$2, selected: _propertyType == t.$1, onTap: () => setState(() => _propertyType = t.$1)),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                BcChip(
+                  label: 'Tous',
+                  selected: _propertyType == null,
+                  onTap: () => setState(() => _propertyType = null),
+                ),
+                for (final t in _propertyTypes)
+                  BcChip(
+                    label: t.$2,
+                    selected: _propertyType == t.$1,
+                    onTap: () => setState(() => _propertyType = t.$1),
+                  ),
+              ],
+            ),
             const SizedBox(height: 18),
-            const Text('Équipements', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+            const Text(
+              'Équipements',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 8),
             FutureBuilder<List<AmenityItem>>(
               future: _amenitiesFuture,
@@ -124,7 +184,9 @@ class _SearchScreenState extends State<SearchScreen> {
                         label: a.name,
                         selected: _selectedAmenities.contains(a.id),
                         onTap: () => setState(() {
-                          if (!_selectedAmenities.remove(a.id)) _selectedAmenities.add(a.id);
+                          if (!_selectedAmenities.remove(a.id)) {
+                            _selectedAmenities.add(a.id);
+                          }
                         }),
                       ),
                   ],
@@ -132,7 +194,11 @@ class _SearchScreenState extends State<SearchScreen> {
               },
             ),
             const SizedBox(height: 24),
-            BcButton(label: 'Voir les logements', icon: 'search', onPressed: _apply),
+            BcButton(
+              label: 'Voir les logements',
+              icon: 'search',
+              onPressed: _apply,
+            ),
           ],
         ),
       ),
@@ -146,6 +212,8 @@ class _AmenityRepository {
 
   Future<List<AmenityItem>> list() async {
     final data = await _api.get('/api/amenities/') as List;
-    return data.map((e) => AmenityItem.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => AmenityItem.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

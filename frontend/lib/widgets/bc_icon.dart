@@ -12,7 +12,10 @@ class BcIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor = color ?? IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
+    final resolvedColor =
+        color ??
+        IconTheme.of(context).color ??
+        Theme.of(context).colorScheme.onSurface;
     return SvgPicture.asset(
       'assets/icons/$name.svg',
       width: size,

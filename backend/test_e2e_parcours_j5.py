@@ -25,14 +25,19 @@ from users.services.otp import generate_and_send_otp
 pytestmark = pytest.mark.django_db
 
 
-def _login_with_otp(client, identifier, *, role=None, full_name=""):
-    _, code = generate_and_send_otp(identifier)
-    payload = {"code": code, "full_name": full_name}
-    payload.update({"email": identifier} if "@" in identifier else {"phone_number": identifier})
-    if role:
-        payload["role"] = role
-    response = client.post("/api/auth/otp/verify/", payload)
-    assert response.status_code == 200, response.data
+def _register_with_otp(client, *, phone, email, role, full_name, city=None, whatsapp_number=None, annonceur_type=None):
+    _, code = generate_and_send_otp(phone)
+    payload = {
+        "role": role, "phone_number": phone, "email": email, "code": code, "full_name": full_name,
+        "password": "Correcth0rse9", "password_confirm": "Correcth0rse9",
+    }
+    if city is not None:
+        payload["city"] = city
+    if whatsapp_number is not None:
+        payload["whatsapp_number"] = whatsapp_number
+        payload["annonceur_type"] = annonceur_type
+    response = client.post("/api/auth/register/", payload)
+    assert response.status_code == 201, response.data
     client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
     return response.data["user"]
 
@@ -42,15 +47,21 @@ def test_parcours_complet_j1_a_j4():
     admin = User.objects.create_user(phone_number="+237600009000", role=User.Role.ADMIN)
     admin_client.force_authenticate(admin)
 
-    # 1. Inscription — téléphone, en tant qu'annonceur -----------------------
+    # 1. Inscription bailleur (téléphone + email + whatsapp + type) -----------
     annonceur_client = APIClient()
-    annonceur = _login_with_otp(annonceur_client, "+237600009001", role="annonceur", full_name="Mme Ekotto")
+    annonceur = _register_with_otp(
+        annonceur_client, phone="+237600009001", email="annonceur.j5@example.com",
+        role="annonceur", full_name="Mme Ekotto", whatsapp_number="+237600009005", annonceur_type="bailleur",
+    )
     assert annonceur["role"] == "annonceur"
     assert annonceur["is_annonceur"] is True
 
-    # 1bis. Inscription — email, en tant que locataire ------------------------
+    # 1bis. Inscription locataire (téléphone + email + ville) -----------------
     locataire_client = APIClient()
-    locataire = _login_with_otp(locataire_client, "locataire.j5@example.com", full_name="M. Biya")
+    locataire = _register_with_otp(
+        locataire_client, phone="+237600009007", email="locataire.j5@example.com",
+        role="locataire", full_name="M. Biya", city="Essos",
+    )
     assert locataire["role"] == "locataire"
     assert locataire["email"] == "locataire.j5@example.com"
 
@@ -101,7 +112,10 @@ def test_parcours_complet_j1_a_j4():
 
     # 6ter. Le contact d'amorçage — déjà locataire Bailconnect — accepte l'invitation
     seed_client = APIClient()
-    seed_user = _login_with_otp(seed_client, "+237600009004", full_name="M. Ateba")
+    seed_user = _register_with_otp(
+        seed_client, phone="+237600009004", email="ateba.j5@example.com",
+        role="locataire", full_name="M. Ateba", city="Nsam",
+    )
     assert seed_user["role"] == "locataire"
     assert seed_user["is_annonceur"] is False
 
@@ -122,4 +136,4 @@ def test_parcours_complet_j1_a_j4():
     })
     assert report_response.status_code == 201
     admin_reports_response = admin_client.get("/api/admin/reports/")
-    assert any(r["listing"] == listing_id for r in admin_reports_response.data)
+    assert any(r["listing"] == listing_id for r in admin_reports_response.data["results"])

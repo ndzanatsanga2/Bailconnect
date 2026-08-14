@@ -8,7 +8,12 @@ class BcChip extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
-  const BcChip({super.key, required this.label, this.selected = false, this.onTap});
+  const BcChip({
+    super.key,
+    required this.label,
+    this.selected = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +24,10 @@ class BcChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
         decoration: BoxDecoration(
           color: selected ? AppColors.green : AppColors.paper,
-          border: Border.all(color: selected ? AppColors.green : AppColors.line, width: 1.5),
+          border: Border.all(
+            color: selected ? AppColors.green : AppColors.line,
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(11),
         ),
         child: Text(

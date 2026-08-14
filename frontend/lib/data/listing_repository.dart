@@ -5,9 +5,14 @@ class ListingMediaItem {
   final String mediaType;
   final String file;
 
-  ListingMediaItem({required this.id, required this.mediaType, required this.file});
+  ListingMediaItem({
+    required this.id,
+    required this.mediaType,
+    required this.file,
+  });
 
-  factory ListingMediaItem.fromJson(Map<String, dynamic> json) => ListingMediaItem(
+  factory ListingMediaItem.fromJson(Map<String, dynamic> json) =>
+      ListingMediaItem(
         id: json['id'] as int,
         mediaType: json['media_type'] as String,
         file: json['file'] as String,
@@ -38,16 +43,18 @@ class Listing {
   });
 
   factory Listing.fromJson(Map<String, dynamic> json) => Listing(
-        id: json['id'] as int,
-        title: json['title'] as String,
-        neighborhood: json['neighborhood'] as String,
-        propertyType: json['property_type'] as String,
-        rentAmount: json['rent_amount'] as int,
-        depositAmount: json['deposit_amount'] as int,
-        whatsappNumber: json['whatsapp_number'] as String,
-        status: json['status'] as String,
-        media: (json['media'] as List).map((e) => ListingMediaItem.fromJson(e as Map<String, dynamic>)).toList(),
-      );
+    id: json['id'] as int,
+    title: json['title'] as String,
+    neighborhood: json['neighborhood'] as String,
+    propertyType: json['property_type'] as String,
+    rentAmount: json['rent_amount'] as int,
+    depositAmount: json['deposit_amount'] as int,
+    whatsappNumber: json['whatsapp_number'] as String,
+    status: json['status'] as String,
+    media: (json['media'] as List)
+        .map((e) => ListingMediaItem.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class ListingRepository {
@@ -57,7 +64,9 @@ class ListingRepository {
 
   Future<List<Listing>> myListings() async {
     final data = await _api.get('/api/listings/') as List;
-    return data.map((e) => Listing.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => Listing.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Listing> create({
@@ -84,7 +93,10 @@ class ListingRepository {
   }
 
   Future<Listing> confirmAvailable(int listingId) async {
-    final data = await _api.post('/api/listings/$listingId/confirm_available/', {});
+    final data = await _api.post(
+      '/api/listings/$listingId/confirm_available/',
+      {},
+    );
     return Listing.fromJson(data as Map<String, dynamic>);
   }
 

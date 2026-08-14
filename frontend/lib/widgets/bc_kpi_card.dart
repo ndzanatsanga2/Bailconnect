@@ -8,16 +8,21 @@ class BcKpiCard extends StatelessWidget {
   final String label;
   final bool highlighted;
 
-  const BcKpiCard({super.key, required this.value, required this.label, this.highlighted = false});
+  const BcKpiCard({
+    super.key,
+    required this.value,
+    required this.label,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: highlighted ? AppColors.green : AppColors.paper,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
+        color: highlighted ? AppColors.amber : AppColors.paper,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,7 +42,9 @@ class BcKpiCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: highlighted ? Colors.white.withValues(alpha: 0.9) : AppColors.sub,
+              color: highlighted
+                  ? Colors.white.withValues(alpha: 0.9)
+                  : AppColors.sub,
             ),
           ),
         ],

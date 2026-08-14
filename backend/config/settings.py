@@ -17,6 +17,13 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 
+# Django Admin : outil de debug interne uniquement (voir config/urls.py) — le
+# back-office produit est la section admin de l'app Flutter. Coupé par défaut
+# hors DEBUG ; réactivable explicitement pour du debug ponctuel en prod via
+# DJANGO_ADMIN_ENABLED=True, avec un chemin non public via DJANGO_ADMIN_URL.
+ADMIN_ENABLED = env.bool("DJANGO_ADMIN_ENABLED", default=DEBUG)
+ADMIN_URL_PATH = env("DJANGO_ADMIN_URL", default="admin/")
+
 
 # Application definition
 
@@ -38,10 +45,12 @@ INSTALLED_APPS = [
     "invitations",
     "reports",
     "adminapi",
+    "messaging",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -73,17 +82,23 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+#
+# Render/Railway fournissent une seule variable DATABASE_URL (Postgres
+# managé) ; le développement local garde les variables séparées existantes.
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME"),
-        "USER": env("DB_USER"),
-        "PASSWORD": env("DB_PASSWORD"),
-        "HOST": env("DB_HOST", default="localhost"),
-        "PORT": env("DB_PORT", default="5432"),
+if env("DATABASE_URL", default=""):
+    DATABASES = {"default": env.db("DATABASE_URL")}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env("DB_NAME"),
+            "USER": env("DB_USER"),
+            "PASSWORD": env("DB_PASSWORD"),
+            "HOST": env("DB_HOST", default="localhost"),
+            "PORT": env("DB_PORT", default="5432"),
+        }
     }
-}
 
 
 AUTH_USER_MODEL = "users.User"
@@ -110,6 +125,10 @@ USE_TZ = True
 
 
 # Static & media files
+#
+# Statics servis directement par l'app via WhiteNoise (pas de webserver
+# séparé nécessaire sur Render/Railway) — voir STORAGES plus bas, défini
+# une fois le choix du stockage média (local/S3) connu.
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -170,11 +189,14 @@ LISTING_EXPIRY_DAYS = env.int("LISTING_EXPIRY_DAYS", default=7)
 
 STORAGE_BACKEND = env("STORAGE_BACKEND", default="local")
 
+STORAGES = {
+    # WhiteNoise sert les statics (admin Django, CSS de marque) directement
+    # depuis l'app, sans webserver séparé — vaut pour local/S3 également.
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
 if STORAGE_BACKEND == "s3":
-    STORAGES = {
-        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-    }
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3.S3Storage"}
     AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
     AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
     AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
@@ -183,6 +205,7 @@ if STORAGE_BACKEND == "s3":
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
 else:
+    STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
     MEDIA_URL = "media/"
     MEDIA_ROOT = BASE_DIR / "media"
 
@@ -190,3 +213,17 @@ else:
 # Divers
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5000")
+
+
+# Sécurité HTTPS — actif uniquement hors DEBUG (Render/Railway terminent le
+# TLS sur un proxy en amont et transmettent en HTTP interne, d'où le header
+# X-Forwarded-Proto pour que Django sache que la requête d'origine est HTTPS).
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 7
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])

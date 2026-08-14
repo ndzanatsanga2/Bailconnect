@@ -1,11 +1,15 @@
 from django.shortcuts import get_object_or_404
+from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from invitations.services import create_invitation
 from leads.models import Lead
+from leads.serializers import ReceivedLeadSerializer
 from listings.models import Listing
+from users.permissions import IsAnnonceur
 
 
 class LeadCreateView(APIView):
@@ -30,3 +34,24 @@ class LeadCreateView(APIView):
             "whatsapp_number": listing.whatsapp_number,
             "pending_invitation": False,
         })
+
+
+class ReceivedLeadViewSet(viewsets.ReadOnlyModelViewSet):
+    """Demandes reçues par l'annonceur connecté, tous biens confondus."""
+
+    serializer_class = ReceivedLeadSerializer
+    permission_classes = [IsAuthenticated, IsAnnonceur]
+
+    def get_queryset(self):
+        return (
+            Lead.objects.filter(listing__owner=self.request.user)
+            .select_related("listing", "tenant")
+            .order_by("-created_at")
+        )
+
+    @action(detail=True, methods=["post"])
+    def mark_read(self, request, pk=None):
+        lead = self.get_object()
+        lead.is_read = True
+        lead.save(update_fields=["is_read"])
+        return Response(ReceivedLeadSerializer(lead).data)

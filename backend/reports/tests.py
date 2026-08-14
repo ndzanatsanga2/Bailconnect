@@ -95,5 +95,5 @@ class TestReportCreate:
         response = admin_client.get("/api/admin/reports/")
 
         assert response.status_code == 200
-        assert len(response.data) == 1
-        assert response.data[0]["reason"] == Report.Reason.CONTENU_INAPPROPRIE
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["reason"] == Report.Reason.CONTENU_INAPPROPRIE

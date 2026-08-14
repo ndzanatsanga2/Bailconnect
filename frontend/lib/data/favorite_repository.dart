@@ -8,9 +8,9 @@ class FavoriteItem {
   FavoriteItem({required this.id, required this.listing});
 
   factory FavoriteItem.fromJson(Map<String, dynamic> json) => FavoriteItem(
-        id: json['id'] as int,
-        listing: PublicListing.fromJson(json['listing'] as Map<String, dynamic>),
-      );
+    id: json['id'] as int,
+    listing: PublicListing.fromJson(json['listing'] as Map<String, dynamic>),
+  );
 }
 
 class FavoriteRepository {
@@ -20,7 +20,9 @@ class FavoriteRepository {
 
   Future<List<FavoriteItem>> list() async {
     final data = await _api.get('/api/favorites/') as List;
-    return data.map((e) => FavoriteItem.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => FavoriteItem.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<int> add(int listingId) async {
@@ -28,5 +30,11 @@ class FavoriteRepository {
     return data['id'] as int;
   }
 
-  Future<void> remove(int favoriteId) => _api.delete('/api/favorites/$favoriteId/');
+  Future<void> remove(int favoriteId) =>
+      _api.delete('/api/favorites/$favoriteId/');
+
+  /// Retire un favori à partir de l'id de l'annonce — pratique là où l'on
+  /// n'a que l'annonce en main (fil, fiche détail), pas la ligne Favorite.
+  Future<void> removeByListing(int listingId) =>
+      _api.delete('/api/favorites/by-listing/$listingId/');
 }

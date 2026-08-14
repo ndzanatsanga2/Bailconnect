@@ -127,4 +127,18 @@ class FavoriteViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
+        listing = serializer.validated_data["listing"]
+        existing = self.get_queryset().filter(listing=listing).first()
+        if existing is not None:
+            serializer.instance = existing
+            return
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=["delete"], url_path="by-listing/(?P<listing_id>[0-9]+)")
+    def by_listing(self, request, listing_id=None):
+        """Retire un favori à partir de l'id de l'annonce — évite au client
+        de devoir connaître l'id de la ligne Favorite pour le retirer."""
+        deleted, _ = self.get_queryset().filter(listing_id=listing_id).delete()
+        if not deleted:
+            return Response(status=404)
+        return Response(status=204)

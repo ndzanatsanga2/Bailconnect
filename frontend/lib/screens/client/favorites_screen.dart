@@ -23,6 +23,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   final _favoriteRepository = FavoriteRepository(ApiClient());
   bool _checkingAuth = true;
   bool _authenticated = false;
+  late Future<List<FavoriteItem>> _favoritesFuture;
 
   @override
   void initState() {
@@ -32,13 +33,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Future<void> _checkAuth() async {
     final authenticated = await _authRepository.isAuthenticated;
-    if (mounted) setState(() { _authenticated = authenticated; _checkingAuth = false; });
+    if (!mounted) return;
+    setState(() {
+      _authenticated = authenticated;
+      _checkingAuth = false;
+      if (authenticated) _favoritesFuture = _favoriteRepository.list();
+    });
   }
 
   Future<void> _login() async {
-    if (await ensureAuthenticated(context, role: 'locataire')) {
-      setState(() => _authenticated = true);
+    if (await ensureAuthenticated(context)) {
+      setState(() {
+        _authenticated = true;
+        _favoritesFuture = _favoriteRepository.list();
+      });
     }
+  }
+
+  Future<void> _remove(FavoriteItem favorite) async {
+    await _favoriteRepository.remove(favorite.id);
+    if (!mounted) return;
+    setState(() => _favoritesFuture = _favoriteRepository.list());
   }
 
   @override
@@ -54,7 +69,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             children: [
               const BcIcon('heart', size: 36, color: AppColors.sub),
               const SizedBox(height: 14),
-              const Text('Connectez-vous pour retrouver vos favoris', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              const Text(
+                'Connectez-vous pour retrouver vos favoris',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              ),
               const SizedBox(height: 18),
               BcButton(label: 'Se connecter', expand: false, onPressed: _login),
             ],
@@ -64,14 +83,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
 
     return FutureBuilder<List<FavoriteItem>>(
-      future: _favoriteRepository.list(),
+      future: _favoritesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Erreur : ${snapshot.error}',
+              style: const TextStyle(color: AppColors.sub),
+            ),
+          );
+        }
         final favorites = snapshot.data ?? [];
         if (favorites.isEmpty) {
-          return const Center(child: Text('Aucun favori pour l\'instant.', style: TextStyle(color: AppColors.sub)));
+          return const Center(
+            child: Text(
+              'Aucun favori pour l\'instant.',
+              style: TextStyle(color: AppColors.sub),
+            ),
+          );
         }
         return SafeArea(
           child: ListView.separated(
@@ -83,32 +115,77 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               return InkWell(
                 borderRadius: BorderRadius.circular(15),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ListingDetailScreen(listingId: favorite.listing.id)),
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ListingDetailScreen(listingId: favorite.listing.id),
+                  ),
                 ),
                 child: Container(
-                  decoration: BoxDecoration(color: AppColors.paper, border: Border.all(color: AppColors.line), borderRadius: BorderRadius.circular(15)),
+                  decoration: BoxDecoration(
+                    color: AppColors.paper,
+                    border: Border.all(color: AppColors.line),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                   child: Row(
                     children: [
                       Container(
                         width: 84,
                         height: 74,
                         decoration: BoxDecoration(
-                          gradient: AppGradients.all[favorite.listing.id % AppGradients.all.length],
-                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(15)),
+                          gradient:
+                              AppGradients.all[favorite.listing.id %
+                                  AppGradients.all.length],
+                          borderRadius: const BorderRadius.horizontal(
+                            left: Radius.circular(15),
+                          ),
                         ),
                       ),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(favorite.listing.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                              Text(
+                                favorite.listing.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
                               const SizedBox(height: 4),
-                              Text(favorite.listing.neighborhood, style: const TextStyle(color: AppColors.sub, fontSize: 11)),
+                              Text(
+                                favorite.listing.neighborhood,
+                                style: const TextStyle(
+                                  color: AppColors.sub,
+                                  fontSize: 11,
+                                ),
+                              ),
                               const SizedBox(height: 6),
-                              Text('${favorite.listing.rentAmount} FCFA', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: AppColors.greenDark)),
+                              Text(
+                                '${favorite.listing.rentAmount} FCFA',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                  color: AppColors.greenDark,
+                                ),
+                              ),
                             ],
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => _remove(favorite),
+                        customBorder: const CircleBorder(),
+                        child: const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: BcIcon(
+                            'heart',
+                            size: 18,
+                            color: AppColors.amber,
                           ),
                         ),
                       ),

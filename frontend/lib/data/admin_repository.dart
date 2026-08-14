@@ -1,11 +1,26 @@
 import 'api_client.dart';
 
+class AdminTrendPoint {
+  final String date;
+  final int count;
+
+  AdminTrendPoint({required this.date, required this.count});
+
+  factory AdminTrendPoint.fromJson(Map<String, dynamic> json) =>
+      AdminTrendPoint(
+        date: json['date'] as String,
+        count: json['count'] as int,
+      );
+}
+
 class AdminDashboard {
   final int clientsCount;
   final int annonceursCount;
   final int listingsPendingCount;
   final int listingsPublishedCount;
   final int reportsOpenCount;
+  final List<AdminTrendPoint> listingsPublishedByDay;
+  final List<AdminTrendPoint> signupsByDay;
 
   AdminDashboard({
     required this.clientsCount,
@@ -13,15 +28,23 @@ class AdminDashboard {
     required this.listingsPendingCount,
     required this.listingsPublishedCount,
     required this.reportsOpenCount,
+    required this.listingsPublishedByDay,
+    required this.signupsByDay,
   });
 
   factory AdminDashboard.fromJson(Map<String, dynamic> json) => AdminDashboard(
-        clientsCount: json['clients_count'] as int,
-        annonceursCount: json['annonceurs_count'] as int,
-        listingsPendingCount: json['listings_pending_count'] as int,
-        listingsPublishedCount: json['listings_published_count'] as int,
-        reportsOpenCount: json['reports_open_count'] as int,
-      );
+    clientsCount: json['clients_count'] as int,
+    annonceursCount: json['annonceurs_count'] as int,
+    listingsPendingCount: json['listings_pending_count'] as int,
+    listingsPublishedCount: json['listings_published_count'] as int,
+    reportsOpenCount: json['reports_open_count'] as int,
+    listingsPublishedByDay: (json['listings_published_by_day'] as List)
+        .map((e) => AdminTrendPoint.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    signupsByDay: (json['signups_by_day'] as List)
+        .map((e) => AdminTrendPoint.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 }
 
 class AdminListing {
@@ -48,16 +71,16 @@ class AdminListing {
   });
 
   factory AdminListing.fromJson(Map<String, dynamic> json) => AdminListing(
-        id: json['id'] as int,
-        title: json['title'] as String,
-        neighborhood: json['neighborhood'] as String,
-        propertyType: json['property_type'] as String,
-        rentAmount: json['rent_amount'] as int,
-        status: json['status'] as String,
-        source: json['source'] as String,
-        verified: json['verified'] as bool,
-        ownerDisplay: json['owner_display'] as String,
-      );
+    id: json['id'] as int,
+    title: json['title'] as String,
+    neighborhood: json['neighborhood'] as String,
+    propertyType: json['property_type'] as String,
+    rentAmount: json['rent_amount'] as int,
+    status: json['status'] as String,
+    source: json['source'] as String,
+    verified: json['verified'] as bool,
+    ownerDisplay: json['owner_display'] as String,
+  );
 }
 
 class AdminUser {
@@ -67,15 +90,21 @@ class AdminUser {
   final String fullName;
   final String role;
 
-  AdminUser({required this.id, this.phoneNumber, this.email, required this.fullName, required this.role});
+  AdminUser({
+    required this.id,
+    this.phoneNumber,
+    this.email,
+    required this.fullName,
+    required this.role,
+  });
 
   factory AdminUser.fromJson(Map<String, dynamic> json) => AdminUser(
-        id: json['id'] as int,
-        phoneNumber: json['phone_number'] as String?,
-        email: json['email'] as String?,
-        fullName: json['full_name'] as String? ?? '',
-        role: json['role'] as String,
-      );
+    id: json['id'] as int,
+    phoneNumber: json['phone_number'] as String?,
+    email: json['email'] as String?,
+    fullName: json['full_name'] as String? ?? '',
+    role: json['role'] as String,
+  );
 }
 
 class AdminInvitation {
@@ -85,9 +114,16 @@ class AdminInvitation {
   final String? usedAt;
   final String expiresAt;
 
-  AdminInvitation({required this.id, required this.phoneNumber, this.listingTitle, this.usedAt, required this.expiresAt});
+  AdminInvitation({
+    required this.id,
+    required this.phoneNumber,
+    this.listingTitle,
+    this.usedAt,
+    required this.expiresAt,
+  });
 
-  factory AdminInvitation.fromJson(Map<String, dynamic> json) => AdminInvitation(
+  factory AdminInvitation.fromJson(Map<String, dynamic> json) =>
+      AdminInvitation(
         id: json['id'] as int,
         phoneNumber: json['phone_number'] as String,
         listingTitle: json['listing_title'] as String?,
@@ -114,17 +150,28 @@ class AdminReport {
   });
 
   factory AdminReport.fromJson(Map<String, dynamic> json) => AdminReport(
-        id: json['id'] as int,
-        listingTitle: json['listing_title'] as String,
-        reporterIdentifier: json['reporter_identifier'] as String,
-        reason: json['reason'] as String,
-        description: json['description'] as String? ?? '',
-        status: json['status'] as String,
-      );
+    id: json['id'] as int,
+    listingTitle: json['listing_title'] as String,
+    reporterIdentifier: json['reporter_identifier'] as String,
+    reason: json['reason'] as String,
+    description: json['description'] as String? ?? '',
+    status: json['status'] as String,
+  );
+}
+
+/// Page de résultats DRF ({count, results}) — utilisée par les tableaux du
+/// back-office pour piloter la pagination côté serveur.
+class AdminPage<T> {
+  final List<T> items;
+  final int count;
+
+  const AdminPage({required this.items, required this.count});
 }
 
 class AdminRepository {
   final ApiClient _api;
+
+  static const _pageSize = 10;
 
   AdminRepository(this._api);
 
@@ -133,22 +180,82 @@ class AdminRepository {
     return AdminDashboard.fromJson(data as Map<String, dynamic>);
   }
 
-  Future<List<AdminListing>> listings({String? status}) async {
-    final data = await _api.get('/api/admin/listings/', query: {'status': ?status}) as List;
-    return data.map((e) => AdminListing.fromJson(e as Map<String, dynamic>)).toList();
+  Future<AdminPage<AdminListing>> listingsPage({
+    String? status,
+    String? search,
+    String? ordering,
+    int page = 1,
+  }) async {
+    final data =
+        await _api.get(
+              '/api/admin/listings/',
+              query: {
+                'status': ?status,
+                'search': ?search,
+                'ordering': ?ordering,
+                'page': page,
+                'page_size': _pageSize,
+              },
+            )
+            as Map<String, dynamic>;
+    return AdminPage(
+      items: (data['results'] as List)
+          .map((e) => AdminListing.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      count: data['count'] as int,
+    );
   }
 
-  Future<void> approveListing(int id) => _api.post('/api/admin/listings/$id/approve/', {});
-  Future<void> rejectListing(int id) => _api.post('/api/admin/listings/$id/reject/', {});
-
-  Future<List<AdminUser>> users({String? role}) async {
-    final data = await _api.get('/api/admin/users/', query: {'role': ?role}) as List;
-    return data.map((e) => AdminUser.fromJson(e as Map<String, dynamic>)).toList();
+  /// Aperçu compact pour le dashboard (5 plus récentes en attente).
+  Future<List<AdminListing>> pendingListingsPreview() async {
+    final page = await listingsPage(status: 'en_attente', page: 1);
+    return page.items.take(5).toList();
   }
 
-  Future<List<AdminInvitation>> invitations() async {
-    final data = await _api.get('/api/admin/invitations/') as List;
-    return data.map((e) => AdminInvitation.fromJson(e as Map<String, dynamic>)).toList();
+  Future<void> approveListing(int id) =>
+      _api.post('/api/admin/listings/$id/approve/', {});
+  Future<void> rejectListing(int id) =>
+      _api.post('/api/admin/listings/$id/reject/', {});
+
+  Future<AdminPage<AdminUser>> usersPage({
+    String? role,
+    String? search,
+    String? ordering,
+    int page = 1,
+  }) async {
+    final data =
+        await _api.get(
+              '/api/admin/users/',
+              query: {
+                'role': ?role,
+                'search': ?search,
+                'ordering': ?ordering,
+                'page': page,
+                'page_size': _pageSize,
+              },
+            )
+            as Map<String, dynamic>;
+    return AdminPage(
+      items: (data['results'] as List)
+          .map((e) => AdminUser.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      count: data['count'] as int,
+    );
+  }
+
+  Future<AdminPage<AdminInvitation>> invitationsPage({int page = 1}) async {
+    final data =
+        await _api.get(
+              '/api/admin/invitations/',
+              query: {'page': page, 'page_size': _pageSize},
+            )
+            as Map<String, dynamic>;
+    return AdminPage(
+      items: (data['results'] as List)
+          .map((e) => AdminInvitation.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      count: data['count'] as int,
+    );
   }
 
   Future<void> sendInvitation({required String phoneNumber, int? listingId}) {
@@ -158,9 +265,30 @@ class AdminRepository {
     });
   }
 
-  Future<List<AdminReport>> reports({String? status}) async {
-    final data = await _api.get('/api/admin/reports/', query: {'status': ?status}) as List;
-    return data.map((e) => AdminReport.fromJson(e as Map<String, dynamic>)).toList();
+  Future<AdminPage<AdminReport>> reportsPage({
+    String? status,
+    String? search,
+    String? ordering,
+    int page = 1,
+  }) async {
+    final data =
+        await _api.get(
+              '/api/admin/reports/',
+              query: {
+                'status': ?status,
+                'search': ?search,
+                'ordering': ?ordering,
+                'page': page,
+                'page_size': _pageSize,
+              },
+            )
+            as Map<String, dynamic>;
+    return AdminPage(
+      items: (data['results'] as List)
+          .map((e) => AdminReport.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      count: data['count'] as int,
+    );
   }
 
   Future<void> resolveReport(int id, String status) {

@@ -5,7 +5,11 @@ class ReportRepository {
 
   ReportRepository(this._api);
 
-  Future<void> report(int listingId, {required String reason, String description = ''}) {
+  Future<void> report(
+    int listingId, {
+    required String reason,
+    String description = '',
+  }) {
     return _api.post('/api/reports/', {
       'listing': listingId,
       'reason': reason,

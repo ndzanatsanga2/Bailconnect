@@ -47,6 +47,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         ANNONCEUR = "annonceur", "Annonceur"
         ADMIN = "admin", "Admin"
 
+    class AnnonceurType(models.TextChoices):
+        BAILLEUR = "bailleur", "Bailleur"
+        AGENT = "agent", "Agent"
+
     phone_number = models.CharField(
         max_length=20, unique=True, null=True, blank=True, validators=[phone_validator],
     )
@@ -57,9 +61,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=False,
         help_text="Capacité de gérer des annonces — un compte locataire peut aussi l'acquérir (ex. amorçage).",
     )
+    city = models.CharField(max_length=100, blank=True, help_text="Ville/quartier — locataire uniquement.")
+    whatsapp_number = models.CharField(max_length=20, blank=True, help_text="Contact WhatsApp des annonces — annonceur uniquement.")
+    annonceur_type = models.CharField(max_length=20, choices=AnnonceurType.choices, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
+
+    # Limitation des tentatives de connexion par mot de passe.
+    login_failed_attempts = models.PositiveSmallIntegerField(default=0)
+    login_locked_until = models.DateTimeField(null=True, blank=True)
 
     objects = UserManager()
 

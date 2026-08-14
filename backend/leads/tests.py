@@ -73,3 +73,42 @@ class TestLeadCreation:
         response = client.post("/api/leads/", {"listing_id": listing.id})
 
         assert response.status_code == 404
+
+
+class TestReceivedLeads:
+    def test_annonceur_sees_only_leads_for_own_listings(self):
+        owner = make_annonceur("+237600000410")
+        other_owner = make_annonceur("+237600000411")
+        listing = make_published_listing(owner=owner, title="Bien A")
+        other_listing = make_published_listing(owner=other_owner, title="Bien B")
+        tenant = make_locataire("+237600000412")
+        Lead.objects.create(listing=listing, tenant=tenant)
+        Lead.objects.create(listing=other_listing, tenant=tenant)
+
+        client = APIClient()
+        client.force_authenticate(owner)
+        response = client.get("/api/leads/received/")
+
+        assert response.status_code == 200
+        titles = {item["listing_title"] for item in response.data}
+        assert titles == {"Bien A"}
+
+    def test_non_annonceur_cannot_list_received_leads(self):
+        client = APIClient()
+        client.force_authenticate(make_locataire("+237600000413"))
+        response = client.get("/api/leads/received/")
+        assert response.status_code == 403
+
+    def test_annonceur_can_mark_lead_read(self):
+        owner = make_annonceur("+237600000414")
+        listing = make_published_listing(owner=owner)
+        lead = Lead.objects.create(listing=listing, tenant=make_locataire("+237600000415"))
+
+        client = APIClient()
+        client.force_authenticate(owner)
+        response = client.post(f"/api/leads/received/{lead.id}/mark_read/")
+
+        assert response.status_code == 200
+        assert response.data["is_read"] is True
+        lead.refresh_from_db()
+        assert lead.is_read is True

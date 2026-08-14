@@ -6,6 +6,10 @@ String amenityIcon(String name) {
   if (lower.contains('clim')) return 'snow';
   if (lower.contains('parking') || lower.contains('garage')) return 'car';
   if (lower.contains('eau') || lower.contains('douche')) return 'shower';
-  if (lower.contains('meublé') || lower.contains('meuble') || lower.contains('chambre')) return 'bed';
+  if (lower.contains('meublé') ||
+      lower.contains('meuble') ||
+      lower.contains('chambre')) {
+    return 'bed';
+  }
   return 'check';
 }

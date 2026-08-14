@@ -1,11 +1,10 @@
 import 'package:bailconnect/main.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('Démarre sur le fil public, consultable sans connexion', (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-
+  testWidgets('Démarre sur le fil public, consultable sans connexion', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const BailconnectApp());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
