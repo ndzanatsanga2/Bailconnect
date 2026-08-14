@@ -21,6 +21,7 @@ class UserManager(BaseUserManager):
             raise ValueError("Un numéro de téléphone ou un email est obligatoire.")
         if email:
             email = self.normalize_email(email)
+        extra_fields.setdefault("is_annonceur", role == self.model.Role.ANNONCEUR)
         user = self.model(phone_number=phone_number or None, email=email or None, role=role, **extra_fields)
         if password:
             user.set_password(password)
@@ -52,6 +53,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(max_length=254, unique=True, null=True, blank=True)
     full_name = models.CharField(max_length=150, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LOCATAIRE)
+    is_annonceur = models.BooleanField(
+        default=False,
+        help_text="Capacité de gérer des annonces — un compte locataire peut aussi l'acquérir (ex. amorçage).",
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)

@@ -15,7 +15,7 @@ def normalize_phone_number(value: str) -> str:
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "phone_number", "email", "full_name", "role", "date_joined"]
+        fields = ["id", "phone_number", "email", "full_name", "role", "is_annonceur", "date_joined"]
         read_only_fields = fields
 
 

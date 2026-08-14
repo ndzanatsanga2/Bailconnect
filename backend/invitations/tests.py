@@ -46,10 +46,39 @@ class TestAcceptInvitation:
         user, updated_invitation = accept_invitation(str(invitation.token), full_name="M. Ateba")
 
         assert user.role == User.Role.ANNONCEUR
+        assert user.is_annonceur is True
         assert user.phone_number == listing.seed_contact_phone
         listing.refresh_from_db()
         assert listing.owner == user
         assert updated_invitation.used_at is not None
+
+    def test_accept_by_existing_locataire_grants_annonceur_capacity_without_changing_role(self):
+        listing = make_amorce_listing()
+        locataire = User.objects.create_user(phone_number=listing.seed_contact_phone, role=User.Role.LOCATAIRE)
+        assert locataire.is_annonceur is False
+        invitation = create_invitation(listing.seed_contact_phone, listing=listing)
+
+        user, _ = accept_invitation(str(invitation.token))
+
+        assert user.id == locataire.id
+        assert user.role == User.Role.LOCATAIRE
+        assert user.is_annonceur is True
+        listing.refresh_from_db()
+        assert listing.owner == user
+
+    def test_locataire_with_annonceur_capacity_can_manage_attached_listing(self):
+        listing = make_amorce_listing()
+        User.objects.create_user(phone_number=listing.seed_contact_phone, role=User.Role.LOCATAIRE)
+        invitation = create_invitation(listing.seed_contact_phone, listing=listing)
+        user, _ = accept_invitation(str(invitation.token))
+
+        client = APIClient()
+        client.force_authenticate(user=user)
+        response = client.patch(f"/api/listings/{listing.id}/", {"title": "Studio rénové"})
+
+        assert response.status_code == 200
+        listing.refresh_from_db()
+        assert listing.title == "Studio rénové"
 
     def test_accept_twice_fails(self):
         listing = make_amorce_listing()

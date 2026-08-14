@@ -37,10 +37,16 @@ def accept_invitation(token: str, *, full_name: str = "") -> "tuple[object, Invi
 
     from users.models import User
 
-    user, _ = User.objects.get_or_create(
+    user, created = User.objects.get_or_create(
         phone_number=invitation.phone_number,
-        defaults={"role": User.Role.ANNONCEUR, "full_name": full_name},
+        defaults={"role": User.Role.ANNONCEUR, "full_name": full_name, "is_annonceur": True},
     )
+
+    # Compte locataire existant qui accepte une invitation : il acquiert la
+    # capacité annonceur sans perdre son rôle par défaut (double casquette).
+    if not created and not user.is_annonceur:
+        user.is_annonceur = True
+        user.save(update_fields=["is_annonceur"])
 
     if invitation.listing is not None and invitation.listing.owner_id is None:
         invitation.listing.owner = user

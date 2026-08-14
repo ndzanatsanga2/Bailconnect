@@ -32,9 +32,11 @@ class VerifyOTPView(APIView):
         if not verify_otp(identifier, data["code"]):
             return Response({"detail": "Code invalide ou expiré."}, status=400)
 
+        role = data.get("role", User.Role.LOCATAIRE)
         defaults = {
-            "role": data.get("role", User.Role.LOCATAIRE),
+            "role": role,
             "full_name": data.get("full_name", ""),
+            "is_annonceur": role == User.Role.ANNONCEUR,
         }
         if data.get("email"):
             user, created = User.objects.get_or_create(email=data["email"], defaults=defaults)
