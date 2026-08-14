@@ -5,13 +5,22 @@ import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/feed_repository.dart';
 import '../../data/lead_repository.dart';
+import '../../data/report_repository.dart';
 import '../../theme/amenity_icons.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_gradients.dart';
 import '../../widgets/bc_badge.dart';
 import '../../widgets/bc_button.dart';
+import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_icon.dart';
 import '../auth/auth_helpers.dart';
+
+const _reportReasons = [
+  ('fausse_annonce', 'Fausse annonce'),
+  ('deja_loue', 'Déjà loué'),
+  ('contenu_inapproprie', 'Contenu inapproprié'),
+  ('autre', 'Autre'),
+];
 
 /// Fiche bien — galerie, prix, modalités, badge Vérifié, fraîcheur, contact.
 /// Fidèle au wireframe Client (écran 5), sans palier token (MVP gratuit).
@@ -27,6 +36,7 @@ class ListingDetailScreen extends StatefulWidget {
 class _ListingDetailScreenState extends State<ListingDetailScreen> {
   final _feedRepository = FeedRepository(ApiClient());
   final _leadRepository = LeadRepository(ApiClient());
+  final _reportRepository = ReportRepository(ApiClient());
   late Future<PublicListing> _future;
   bool _contacting = false;
 
@@ -56,6 +66,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     } finally {
       if (mounted) setState(() => _contacting = false);
     }
+  }
+
+  Future<void> _openReportSheet() async {
+    if (!await ensureAuthenticated(context, role: 'locataire')) return;
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => _ReportSheet(repository: _reportRepository, listingId: widget.listingId),
+    );
   }
 
   @override
@@ -181,6 +203,27 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               const SizedBox(height: 14),
                               Text(listing.description, style: const TextStyle(color: AppColors.sub, fontSize: 13, height: 1.5)),
                             ],
+                            const SizedBox(height: 20),
+                            Center(
+                              child: InkWell(
+                                onTap: _openReportSheet,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const BcIcon('flag', size: 14, color: AppColors.sub),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Signaler cette annonce',
+                                        style: TextStyle(color: AppColors.sub, fontSize: 12.5, fontWeight: FontWeight.w700, decoration: TextDecoration.underline, decorationColor: AppColors.sub.withValues(alpha: 0.4)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -224,5 +267,105 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
   String _apiOrigin() {
     final uri = Uri.parse(AppConfig.apiBaseUrl);
     return '${uri.scheme}://${uri.authority}';
+  }
+}
+
+/// Modale de signalement — sélection du motif + commentaire libre optionnel.
+class _ReportSheet extends StatefulWidget {
+  final ReportRepository repository;
+  final int listingId;
+
+  const _ReportSheet({required this.repository, required this.listingId});
+
+  @override
+  State<_ReportSheet> createState() => _ReportSheetState();
+}
+
+class _ReportSheetState extends State<_ReportSheet> {
+  final _descriptionController = TextEditingController();
+  String _reason = _reportReasons.first.$1;
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _sending = true);
+    try {
+      await widget.repository.report(
+        widget.listingId,
+        reason: _reason,
+        description: _descriptionController.text.trim(),
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Merci, votre signalement a été transmis.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20, right: 20, top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            const BcIcon('flag', size: 18, color: AppColors.amber),
+            const SizedBox(width: 8),
+            const Text('Signaler cette annonce', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ]),
+          const SizedBox(height: 6),
+          const Text(
+            "Choisissez le motif le plus proche du problème rencontré.",
+            style: TextStyle(color: AppColors.sub, fontSize: 12.5),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (value, label) in _reportReasons)
+                BcChip(label: label, selected: _reason == value, onTap: () => setState(() => _reason = value)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _descriptionController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: 'Détails (facultatif)',
+              filled: true,
+              fillColor: AppColors.bg,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(13),
+                borderSide: const BorderSide(color: AppColors.line),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          BcButton(
+            label: _sending ? 'Envoi...' : 'Envoyer le signalement',
+            icon: 'flag',
+            variant: BcButtonVariant.amber,
+            onPressed: _sending ? null : _submit,
+          ),
+        ],
+      ),
+    );
   }
 }
