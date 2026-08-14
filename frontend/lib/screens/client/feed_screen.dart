@@ -191,7 +191,7 @@ class _FeedCard extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.22), shape: BoxShape.circle, border: Border.all(color: Colors.white70, width: 2)),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 28),
+              child: const BcIcon('play', color: Colors.white, size: 28),
             ),
           ),
         Positioned(
