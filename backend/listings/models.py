@@ -33,7 +33,9 @@ class Listing(models.Model):
         AMORCE = "amorce", "Amorçage"
 
     owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listings"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="listings",
+        null=True, blank=True,
+        help_text="Vide tant qu'une annonce d'amorçage n'a pas été réclamée par un annonceur inscrit.",
     )
     title = models.CharField(max_length=150)
     description = models.TextField(blank=True)

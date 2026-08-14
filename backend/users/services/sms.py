@@ -13,9 +13,10 @@ class SMSProvider(ABC):
 
 
 class ConsoleSMSProvider(SMSProvider):
-    """Fallback dev : n'envoie rien, journalise le message."""
+    """Fallback dev : n'envoie rien, affiche le message dans la console du serveur."""
 
     def send(self, phone_number: str, message: str) -> None:
+        print(f"[SMS DEV] {phone_number}: {message}", flush=True)
         logger.info("SMS (console) -> %s: %s", phone_number, message)
 
 

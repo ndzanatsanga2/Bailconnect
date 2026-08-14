@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
@@ -15,10 +16,12 @@ phone_validator = RegexValidator(
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
-    def create_user(self, phone_number, role="locataire", password=None, **extra_fields):
-        if not phone_number:
-            raise ValueError("Le numéro de téléphone est obligatoire.")
-        user = self.model(phone_number=phone_number, role=role, **extra_fields)
+    def create_user(self, phone_number=None, email=None, role="locataire", password=None, **extra_fields):
+        if not phone_number and not email:
+            raise ValueError("Un numéro de téléphone ou un email est obligatoire.")
+        if email:
+            email = self.normalize_email(email)
+        user = self.model(phone_number=phone_number or None, email=email or None, role=role, **extra_fields)
         if password:
             user.set_password(password)
         else:
@@ -26,7 +29,7 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, phone_number, password=None, **extra_fields):
+    def create_superuser(self, phone_number=None, email=None, password=None, **extra_fields):
         extra_fields.setdefault("role", "admin")
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
@@ -34,7 +37,7 @@ class UserManager(BaseUserManager):
             raise ValueError("Un superuser doit avoir is_staff=True.")
         if extra_fields.get("is_superuser") is not True:
             raise ValueError("Un superuser doit avoir is_superuser=True.")
-        return self.create_user(phone_number, password=password, **extra_fields)
+        return self.create_user(phone_number=phone_number, email=email, password=password, **extra_fields)
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -44,8 +47,9 @@ class User(AbstractBaseUser, PermissionsMixin):
         ADMIN = "admin", "Admin"
 
     phone_number = models.CharField(
-        max_length=20, unique=True, validators=[phone_validator]
+        max_length=20, unique=True, null=True, blank=True, validators=[phone_validator],
     )
+    email = models.EmailField(max_length=254, unique=True, null=True, blank=True)
     full_name = models.CharField(max_length=150, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.LOCATAIRE)
     is_active = models.BooleanField(default=True)
@@ -57,12 +61,30 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
+                name="user_email_or_phone_required",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if not self.email and not self.phone_number:
+            raise ValidationError("Un numéro de téléphone ou un email est obligatoire.")
+
     def __str__(self):
-        return f"{self.phone_number} ({self.role})"
+        return f"{self.email or self.phone_number} ({self.role})"
 
 
 class OTPCode(models.Model):
-    phone_number = models.CharField(max_length=20, db_index=True, validators=[phone_validator])
+    class Channel(models.TextChoices):
+        SMS = "sms", "SMS"
+        EMAIL = "email", "Email"
+
+    identifier = models.CharField(max_length=254, db_index=True, help_text="Numéro de téléphone ou email.")
+    channel = models.CharField(max_length=10, choices=Channel.choices)
     code_hash = models.CharField(max_length=128)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
@@ -86,4 +108,4 @@ class OTPCode(models.Model):
         return timezone.now() + timedelta(minutes=minutes)
 
     def __str__(self):
-        return f"OTP {self.phone_number} ({'utilisé' if self.is_used else 'actif'})"
+        return f"OTP {self.identifier} ({'utilisé' if self.is_used else 'actif'})"

@@ -25,6 +25,23 @@ PostgreSQL, identifiants dans `backend/.env` (non versionné).
 Accès : `http://localhost:8000/admin/`. À ne jamais utiliser en production —
 recréer un superuser dédié avec un mot de passe fort avant tout déploiement.
 
+## Tâche planifiée : fraîcheur des annonces
+
+Les annonces publiées sans confirmation de disponibilité depuis
+`LISTING_EXPIRY_DAYS` jours (7 par défaut) doivent être expirées
+automatiquement. Aucune infra de tâches planifiées (Celery, etc.) n'est dans
+le stack MVP — à exécuter périodiquement via cron / Planificateur de tâches
+Windows :
+
+```bash
+python manage.py expire_stale_listings
+```
+
+Exemple cron (une fois par jour) :
+```
+0 3 * * * cd /chemin/vers/backend && venv/bin/python manage.py expire_stale_listings
+```
+
 ## Démarrage frontend (Flutter — PWA en priorité)
 
 ```bash

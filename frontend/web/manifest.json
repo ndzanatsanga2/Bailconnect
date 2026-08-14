@@ -1,11 +1,11 @@
 {
-    "name": "bailconnect",
-    "short_name": "bailconnect",
+    "name": "Bailconnect",
+    "short_name": "Bailconnect",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#E9ECEA",
+    "theme_color": "#0A7A4C",
+    "description": "Mise en relation logement à Yaoundé, sans agent immobilier.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

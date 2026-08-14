@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "leads",
     "invitations",
     "reports",
+    "adminapi",
 ]
 
 MIDDLEWARE = [
@@ -55,7 +56,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -112,6 +113,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -143,6 +145,25 @@ TWILIO_FROM_NUMBER = env("TWILIO_FROM_NUMBER", default="")
 OTP_CODE_LENGTH = env.int("OTP_CODE_LENGTH", default=6)
 OTP_EXPIRY_MINUTES = env.int("OTP_EXPIRY_MINUTES", default=5)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
+
+# Email / OTP (interface abstraite — voir users/services/email.py)
+# EMAIL_PROVIDER: console (dev) ou smtp (prod) — s'appuie sur l'abstraction
+# EMAIL_BACKEND déjà fournie par Django.
+EMAIL_PROVIDER = env("EMAIL_PROVIDER", default="console")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Bailconnect <no-reply@bailconnect.cm>")
+
+if EMAIL_PROVIDER == "smtp":
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = env("EMAIL_HOST", default="")
+    EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+    EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+    EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+    EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Fraîcheur des annonces : jours sans confirmation avant expiration auto (7-10 j)
+LISTING_EXPIRY_DAYS = env.int("LISTING_EXPIRY_DAYS", default=7)
 
 
 # Stockage média (interface abstraite : local en dev, S3-compatible en prod)
