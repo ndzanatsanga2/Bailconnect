@@ -186,6 +186,25 @@ class TestFeed:
         titles = [item["title"] for item in response.data]
         assert titles == ["Abordable"]
 
+    def test_feed_without_budget_max_returns_all_listings(self):
+        owner = make_annonceur("+237600000154")
+        make_published_listing(owner=owner, title="Abordable", rent_amount=50000)
+        make_published_listing(owner=owner, title="Cher", rent_amount=300000)
+
+        response = APIClient().get("/api/feed/")
+
+        titles = {item["title"] for item in response.data}
+        assert titles == {"Abordable", "Cher"}
+
+    def test_feed_rejects_non_numeric_budget_max(self):
+        owner = make_annonceur("+237600000155")
+        make_published_listing(owner=owner, rent_amount=50000)
+
+        response = APIClient().get("/api/feed/", {"budget_max": "gratuit"})
+
+        assert response.status_code == 400
+        assert "budget_max" in response.data
+
     def test_feed_filters_by_neighborhood(self):
         owner = make_annonceur("+237600000153")
         make_published_listing(owner=owner, title="Bastos", neighborhood="Bastos")

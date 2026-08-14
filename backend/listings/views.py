@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import parsers, permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from listings.models import Amenity, Favorite, Listing
@@ -92,6 +93,10 @@ class FeedViewSet(viewsets.ReadOnlyModelViewSet):
 
         budget_max = params.get("budget_max")
         if budget_max:
+            try:
+                budget_max = int(budget_max)
+            except ValueError:
+                raise ValidationError({"budget_max": "Doit être un nombre entier."})
             qs = qs.filter(rent_amount__lte=budget_max)
 
         property_type = params.get("property_type")
