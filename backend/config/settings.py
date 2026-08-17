@@ -17,6 +17,14 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 
+# Render fournit le hostname externe de l'app via cette variable d'env, non
+# connu à l'avance (sous-domaine généré) — on l'ajoute automatiquement pour
+# éviter un DisallowedHost, tout en gardant DJANGO_ALLOWED_HOSTS ci-dessus
+# pour surcharger/ajouter d'autres domaines (ex. domaine custom).
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
 # Django Admin : outil de debug interne uniquement (voir config/urls.py) — le
 # back-office produit est la section admin de l'app Flutter. Coupé par défaut
 # hors DEBUG ; réactivable explicitement pour du debug ponctuel en prod via
@@ -227,3 +235,7 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if RENDER_EXTERNAL_HOSTNAME:
+    render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
