@@ -146,8 +146,24 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # CORS
+#
+# Frontend Vercel : domaine de prod en dur ci-dessous, CORS_ALLOWED_ORIGINS
+# permet d'en ajouter d'autres (liste séparée par des virgules) sans toucher
+# au code. Les déploiements de preview Vercel (sous-domaines générés par
+# commit/branche) passent par CORS_ALLOWED_ORIGIN_REGEXES plutôt que par une
+# liste figée — c'est le nom de setting réel de django-cors-headers (au
+# pluriel, liste de patterns), CORS_ALLOWED_ORIGIN_REGEX (singulier) n'existe
+# pas et serait silencieusement ignoré.
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOWED_ORIGINS = ["https://bailconnect.vercel.app"]
+CORS_ALLOWED_ORIGINS += [
+    origin for origin in env.list("CORS_ALLOWED_ORIGINS", default=[])
+    if origin not in CORS_ALLOWED_ORIGINS
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    env("CORS_ALLOWED_ORIGIN_REGEX", default=r"^https://bailconnect-.*\.vercel\.app$")
+]
 
 
 # Django REST Framework
@@ -239,3 +255,6 @@ if RENDER_EXTERNAL_HOSTNAME:
     render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
     if render_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(render_origin)
+for origin in CORS_ALLOWED_ORIGINS:
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
