@@ -13,7 +13,7 @@ services:
     rootDir: backend
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi --log-file - --bind 0.0.0.0:$PORT
+    startCommand: python manage.py migrate --noinput && python manage.py ensure_admin && python manage.py collectstatic --noinput && gunicorn config.wsgi --log-file - --bind 0.0.0.0:$PORT
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -51,3 +51,9 @@ services:
         value: console
       - key: EMAIL_PROVIDER
         value: console
+      - key: ADMIN_IDENTIFIER
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_RESET_PASSWORD
+        sync: false
