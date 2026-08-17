@@ -1,4 +1,7 @@
+import io
+
 import pytest
+from PIL import Image
 from rest_framework.test import APIClient
 
 from invitations.models import Invitation
@@ -113,6 +116,29 @@ class TestAdminListingModeration:
         assert response.data["source"] == Listing.Source.AMORCE
         assert response.data["status"] == Listing.Status.PUBLIEE
         assert response.data["owner"] is None
+
+    def test_admin_can_upload_media_to_created_listing(self):
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000923"))
+        listing = client.post("/api/admin/listings/", {
+            "title": "Studio amorçage", "neighborhood": "Nlongkak",
+            "property_type": Listing.PropertyType.STUDIO, "rent_amount": 60000,
+            "whatsapp_number": "+237600001102",
+        }).data
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (10, 10), color="green").save(buffer, format="JPEG")
+        buffer.seek(0)
+        buffer.name = "photo.jpg"
+
+        response = client.post(
+            f"/api/admin/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": buffer, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+        assert Listing.objects.get(id=listing["id"]).media.count() == 1
 
 
 class TestAdminUsers:

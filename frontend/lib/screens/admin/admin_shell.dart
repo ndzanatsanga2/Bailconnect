@@ -21,6 +21,11 @@ import 'admin_users_tab.dart';
 /// routage automatique au rôle à la connexion).
 const kAdminRoute = '/admin-bailconnect';
 
+/// Page de connexion propre au back-office (jamais le dialog mobile de
+/// l'app client) — destination de repli quand [kAdminRoute] est atteint
+/// sans session admin valide.
+const kAdminLoginRoute = '/admin-bailconnect/login';
+
 const _tabs = [
   ('chart', 'Dashboard', 'Vue d\'ensemble de la plateforme'),
   ('home', 'Annonces', 'Modération des annonces'),
@@ -56,6 +61,7 @@ class _AdminShellState extends State<AdminShell> {
       context,
       (u) => u.role == 'admin',
       message: "Accès réservé aux administrateurs.",
+      fallbackRoute: kAdminLoginRoute,
     );
     _meFuture = _authRepository.me();
   }

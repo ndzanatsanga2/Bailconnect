@@ -63,13 +63,15 @@ class PasswordFieldsMixin(serializers.Serializer):
 
 class RegisterSerializer(PasswordFieldsMixin):
     """Inscription client ou annonceur — champs communs + champs propres au
-    rôle choisi, vérifiés en un seul appel via le code OTP envoyé par SMS.
-    Le mot de passe défini ici sert ensuite aux connexions ultérieures."""
+    rôle choisi, vérifiés en un seul appel via le code OTP envoyé par SMS ou
+    email selon otp_channel (repli si le SMS n'arrive pas). Le mot de passe
+    défini ici sert ensuite aux connexions ultérieures."""
 
     role = serializers.ChoiceField(choices=[User.Role.LOCATAIRE, User.Role.ANNONCEUR])
     phone_number = serializers.CharField()
     email = serializers.EmailField()
     code = serializers.CharField()
+    otp_channel = serializers.ChoiceField(choices=["sms", "email"], default="sms")
     full_name = serializers.CharField(allow_blank=False)
     password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)

@@ -6,11 +6,13 @@ import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
 import '../../widgets/bc_mobile_frame.dart';
+import '../../widgets/bc_otp_channel_select.dart';
 import 'open_auth_flow.dart';
 import 'reset_password_screen.dart';
 
-/// Mot de passe oublié — étape 1 : demande du code OTP sur l'identifiant
-/// (email ou téléphone), envoyé par SMS ou email selon le canal détecté.
+/// Mot de passe oublié — étape 1 : choix explicite du canal (SMS ou email,
+/// repli si le SMS n'arrive pas) puis demande du code OTP sur l'identifiant
+/// correspondant.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -19,18 +21,23 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _identifierController = TextEditingController();
+  final _phoneController = TextEditingController(text: '+237');
+  final _emailController = TextEditingController();
   final _authRepository = AuthRepository(ApiClient());
+  String _otpChannel = 'sms';
   bool _loading = false;
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final identifier = _identifierController.text.trim();
+    final identifier = _otpChannel == 'email'
+        ? _emailController.text.trim()
+        : _phoneController.text.trim();
     if (identifier.isEmpty) return;
     setState(() => _loading = true);
     try {
@@ -94,22 +101,47 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       style: TextStyle(fontSize: 13.5, color: AppColors.sub),
                     ),
                     const SizedBox(height: 28),
-                    TextField(
-                      controller: _identifierController,
-                      decoration: InputDecoration(
-                        labelText: 'Email ou numéro de téléphone',
-                        filled: true,
-                        fillColor: AppColors.paper,
-                        prefixIcon: const Padding(
-                          padding: EdgeInsets.all(13),
-                          child: BcIcon('user', size: 16, color: AppColors.sub),
+                    BcOtpChannelSelect(
+                      value: _otpChannel,
+                      onChanged: (v) => setState(() => _otpChannel = v),
+                    ),
+                    const SizedBox(height: 14),
+                    if (_otpChannel == 'email')
+                      TextField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                          filled: true,
+                          fillColor: AppColors.paper,
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.all(13),
+                            child: BcIcon('chat', size: 16, color: AppColors.sub),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(13),
+                            borderSide: const BorderSide(color: AppColors.line),
+                          ),
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(13),
-                          borderSide: const BorderSide(color: AppColors.line),
+                      )
+                    else
+                      TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'Numéro de téléphone',
+                          filled: true,
+                          fillColor: AppColors.paper,
+                          prefixIcon: const Padding(
+                            padding: EdgeInsets.all(13),
+                            child: BcIcon('phone', size: 16, color: AppColors.sub),
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(13),
+                            borderSide: const BorderSide(color: AppColors.line),
+                          ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 18),
                     BcButton(
                       label: _loading ? 'Envoi...' : 'Recevoir le code',

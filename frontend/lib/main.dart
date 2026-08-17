@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
+import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/client/client_shell.dart';
 import 'theme/app_theme.dart';
@@ -26,6 +27,7 @@ class BailconnectApp extends StatelessWidget {
       routes: {
         '/': (context) => const ClientShell(),
         kAdminRoute: (context) => const AdminShell(),
+        kAdminLoginRoute: (context) => const AdminLoginScreen(),
       },
     );
   }

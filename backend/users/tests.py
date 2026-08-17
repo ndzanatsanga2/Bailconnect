@@ -69,6 +69,31 @@ class TestOTPService:
         _, code = generate_and_send_otp("user@example.com")
         assert verify_otp("user@example.com", code) is True
 
+    def test_verify_by_email_with_wrong_code_fails(self):
+        generate_and_send_otp("wrong-code@example.com")
+        assert verify_otp("wrong-code@example.com", "000000") is False
+
+    def test_verify_by_email_with_expired_code_fails(self):
+        from datetime import timedelta
+
+        otp, code = generate_and_send_otp("expired@example.com")
+        otp.expires_at = timezone.now() - timedelta(minutes=1)
+        otp.save(update_fields=["expires_at"])
+        assert verify_otp("expired@example.com", code) is False
+
+
+class TestDjangoEmailProvider:
+    def test_send_populates_outbox_with_recipient_and_subject(self, mailoutbox):
+        from users.services.email import DjangoEmailProvider
+
+        DjangoEmailProvider().send("dest@example.com", "Votre code Bailconnect", "Message du corps")
+
+        assert len(mailoutbox) == 1
+        sent = mailoutbox[0]
+        assert sent.to == ["dest@example.com"]
+        assert sent.subject == "Votre code Bailconnect"
+        assert "Message du corps" in sent.body
+
 
 class TestOTPRequestEndpoint:
     def test_request_without_identifier_returns_400(self):
@@ -143,6 +168,34 @@ class TestRegisterClient:
         _register_client(client, phone="+237600000102", email="dup@example.com")
         response = _register_client(client, phone="+237600000102", email="autre@example.com")
         assert response.status_code == 400
+
+    def test_register_client_via_email_channel_succeeds(self):
+        client = APIClient()
+        email = "email-channel@example.com"
+        _set_next_code(email, "666666")
+
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000106", "email": email,
+            "code": "666666", "otp_channel": "email", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+
+        assert response.status_code == 201
+        assert User.objects.filter(email=email).exists()
+
+    def test_register_with_email_channel_and_wrong_code_fails(self):
+        client = APIClient()
+        email = "email-channel-wrong@example.com"
+        _set_next_code(email, "777777")
+
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000107", "email": email,
+            "code": "000000", "otp_channel": "email", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+
+        assert response.status_code == 400
+        assert not User.objects.filter(email=email).exists()
 
     def test_register_cannot_grant_admin_role(self):
         client = APIClient()

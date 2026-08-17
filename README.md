@@ -42,6 +42,28 @@ Exemple cron (une fois par jour) :
 0 3 * * * cd /chemin/vers/backend && venv/bin/python manage.py expire_stale_listings
 ```
 
+## OTP par email en production
+
+Le SMS reste le canal par défaut, mais l'inscription et la réinitialisation
+de mot de passe permettent d'envoyer le code par email en repli. En local,
+l'envoi passe par la console (aucune config requise). En production, définir
+sur Render (dashboard → service → Environment) :
+
+| Variable | Description |
+|---|---|
+| `EMAIL_PROVIDER` | `smtp` (bascule l'envoi réel, sinon reste en console) |
+| `EMAIL_HOST` | Hôte SMTP du service choisi |
+| `EMAIL_PORT` | Port SMTP (généralement `587`) |
+| `EMAIL_HOST_USER` | Identifiant SMTP |
+| `EMAIL_HOST_PASSWORD` | Mot de passe / clé API SMTP |
+| `EMAIL_USE_TLS` | `True` |
+| `DEFAULT_FROM_EMAIL` | Expéditeur, ex. `Bailconnect <no-reply@bailconnect.cm>` |
+
+N'importe quel service transactionnel (SendGrid, Mailgun, Resend, etc.)
+convient : renseigner `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`
+avec les identifiants de leur relais SMTP — aucune intégration API dédiée
+n'est nécessaire.
+
 ## Démarrage frontend (Flutter — PWA en priorité)
 
 ```bash

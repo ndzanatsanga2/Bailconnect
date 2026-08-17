@@ -46,7 +46,7 @@ class RequestOTPView(APIView):
 
 class RegisterView(APIView):
     """Inscription client ou annonceur — crée le compte (avec mot de passe)
-    une fois le code OTP (envoyé par SMS au numéro fourni) vérifié."""
+    une fois le code OTP (envoyé par SMS ou email selon otp_channel) vérifié."""
 
     permission_classes = [AllowAny]
 
@@ -55,7 +55,8 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        if not verify_otp(data["phone_number"], data["code"]):
+        identifier = data["email"] if data["otp_channel"] == "email" else data["phone_number"]
+        if not verify_otp(identifier, data["code"]):
             return Response({"detail": "Code invalide ou expiré."}, status=400)
 
         if User.objects.filter(Q(phone_number=data["phone_number"]) | Q(email=data["email"])).exists():

@@ -1,4 +1,5 @@
 import 'api_client.dart';
+import 'feed_repository.dart' show AmenityItem;
 
 class AdminTrendPoint {
   final String date;
@@ -216,6 +217,59 @@ class AdminRepository {
       _api.post('/api/admin/listings/$id/approve/', {});
   Future<void> rejectListing(int id) =>
       _api.post('/api/admin/listings/$id/reject/', {});
+
+  Future<List<AmenityItem>> amenities() async {
+    final data = await _api.get('/api/amenities/') as List;
+    return data
+        .map((e) => AmenityItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Création directe par l'admin — auto-validée et publiée côté serveur
+  /// (amorçage, sans annonceur inscrit à ce stade).
+  Future<AdminListing> createListing({
+    required String title,
+    required String description,
+    required String neighborhood,
+    required String propertyType,
+    required int rentAmount,
+    required int depositAmount,
+    required String terms,
+    required String whatsappNumber,
+    List<int> amenityIds = const [],
+    String seedContactName = '',
+    String seedContactPhone = '',
+  }) async {
+    final data = await _api.post('/api/admin/listings/', {
+      'title': title,
+      'description': description,
+      'neighborhood': neighborhood,
+      'property_type': propertyType,
+      'rent_amount': rentAmount,
+      'deposit_amount': depositAmount,
+      'terms': terms,
+      'whatsapp_number': whatsappNumber,
+      'amenity_ids': amenityIds,
+      'seed_contact_name': seedContactName,
+      'seed_contact_phone': seedContactPhone,
+    });
+    return AdminListing.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<void> uploadListingMedia({
+    required int listingId,
+    required String mediaType,
+    required List<int> bytes,
+    required String filename,
+  }) {
+    return _api.uploadFile(
+      '/api/admin/listings/$listingId/upload_media/',
+      fieldName: 'file',
+      bytes: bytes,
+      filename: filename,
+      fields: {'media_type': mediaType},
+    );
+  }
 
   Future<AdminPage<AdminUser>> usersPage({
     String? role,

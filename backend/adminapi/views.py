@@ -3,7 +3,7 @@ from datetime import timedelta
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from rest_framework import filters, pagination, permissions, viewsets
+from rest_framework import filters, pagination, parsers, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +12,7 @@ from adminapi.serializers import AdminInvitationSerializer, AdminListingSerializ
 from invitations.models import Invitation
 from invitations.services import create_invitation
 from listings.models import Listing
+from listings.serializers import ListingMediaSerializer
 from reports.models import Report
 from users.models import User
 from users.permissions import IsAdminRole
@@ -81,6 +82,14 @@ class AdminListingViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Annonce d'amorçage créée par l'admin : pas d'annonceur inscrit à ce stade.
         serializer.save(source=Listing.Source.AMORCE, status=Listing.Status.PUBLIEE)
+
+    @action(detail=True, methods=["post"], parser_classes=[parsers.MultiPartParser])
+    def upload_media(self, request, pk=None):
+        listing = self.get_object()
+        serializer = ListingMediaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(listing=listing)
+        return Response(serializer.data, status=201)
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):

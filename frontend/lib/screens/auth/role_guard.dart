@@ -8,12 +8,14 @@ import '../../data/auth_repository.dart';
 /// indépendamment du bouton qui a permis d'y accéder (y compris
 /// l'auto-connexion au démarrage, où cet écran peut être seul sur la pile).
 /// Revient en arrière avec un message si ce n'est pas le cas — ou, s'il n'y
-/// a rien en dessous, renvoie proprement vers la connexion. Retourne `true`
-/// si l'accès est autorisé.
+/// a rien en dessous, renvoie vers [fallbackRoute] (l'app client par défaut ;
+/// le back-office admin renvoie plutôt vers sa propre page de connexion).
+/// Retourne `true` si l'accès est autorisé.
 Future<bool> guardRole(
   BuildContext context,
   bool Function(AuthUser user) allowed, {
   required String message,
+  String fallbackRoute = '/',
 }) async {
   final user = await AuthRepository(ApiClient()).me();
   if (user != null && allowed(user)) return true;
@@ -23,7 +25,7 @@ Future<bool> guardRole(
   if (navigator.canPop()) {
     navigator.pop();
   } else {
-    navigator.pushNamedAndRemoveUntil('/', (route) => false);
+    navigator.pushNamedAndRemoveUntil(fallbackRoute, (route) => false);
   }
   return false;
 }

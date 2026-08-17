@@ -75,8 +75,9 @@ class AuthRepository {
     return AuthUser.fromJson(data['user'] as Map<String, dynamic>);
   }
 
-  /// Inscription client (locataire) — OTP envoyé par SMS au numéro fourni,
-  /// mot de passe défini dès l'inscription.
+  /// Inscription client (locataire) — OTP envoyé par SMS ou email selon
+  /// [otpChannel] (repli si le SMS n'arrive pas), mot de passe défini dès
+  /// l'inscription.
   Future<AuthUser> registerClient({
     required String phoneNumber,
     required String email,
@@ -85,6 +86,7 @@ class AuthRepository {
     required String password,
     required String passwordConfirm,
     required String code,
+    String otpChannel = 'sms',
   }) async {
     final data = await _api.post('/api/auth/register/', {
       'role': 'locataire',
@@ -95,12 +97,14 @@ class AuthRepository {
       'password': password,
       'password_confirm': passwordConfirm,
       'code': code,
+      'otp_channel': otpChannel,
     }, auth: false);
     await _api.saveToken(data['token'] as String);
     return AuthUser.fromJson(data['user'] as Map<String, dynamic>);
   }
 
-  /// Inscription bailleur/agent (annonceur) — OTP envoyé par SMS au numéro fourni.
+  /// Inscription bailleur/agent (annonceur) — OTP envoyé par SMS ou email
+  /// selon [otpChannel].
   Future<AuthUser> registerAnnonceur({
     required String phoneNumber,
     required String email,
@@ -110,6 +114,7 @@ class AuthRepository {
     required String password,
     required String passwordConfirm,
     required String code,
+    String otpChannel = 'sms',
   }) async {
     final data = await _api.post('/api/auth/register/', {
       'role': 'annonceur',
@@ -121,6 +126,7 @@ class AuthRepository {
       'password': password,
       'password_confirm': passwordConfirm,
       'code': code,
+      'otp_channel': otpChannel,
     }, auth: false);
     await _api.saveToken(data['token'] as String);
     return AuthUser.fromJson(data['user'] as Map<String, dynamic>);

@@ -7,6 +7,7 @@ import '../../widgets/bc_badge.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_data_table.dart';
+import 'admin_publish_listing_screen.dart';
 
 const _statusFilters = [
   (null, 'Toutes'),
@@ -106,6 +107,13 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
     _load();
   }
 
+  Future<void> _openPublish() async {
+    final published = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AdminPublishListingScreen()),
+    );
+    if (published == true) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -113,19 +121,37 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Annonces',
-            style: TextStyle(
-              fontSize: 23,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.4,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 3),
-          const Text(
-            'Modération et gestion de toutes les annonces de la plateforme',
-            style: TextStyle(fontSize: 13, color: AppColors.sub),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Annonces',
+                      style: TextStyle(
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Modération et gestion de toutes les annonces de la plateforme',
+                      style: TextStyle(fontSize: 13, color: AppColors.sub),
+                    ),
+                  ],
+                ),
+              ),
+              BcButton(
+                label: 'Publier une annonce',
+                icon: 'plus',
+                expand: false,
+                onPressed: _openPublish,
+              ),
+            ],
           ),
           const SizedBox(height: 22),
           BcDataTable<AdminListing>(

@@ -7,6 +7,7 @@ import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_icon.dart';
 import '../../widgets/bc_mobile_frame.dart';
+import '../../widgets/bc_otp_channel_select.dart';
 import '../../widgets/bc_password_field.dart';
 import 'open_auth_flow.dart';
 import 'otp_code_screen.dart';
@@ -14,7 +15,8 @@ import 'otp_code_screen.dart';
 const _annonceurTypes = [('bailleur', 'Bailleur'), ('agent', 'Agent')];
 
 /// Inscription bailleur/agent (annonceur) — prénom, email, téléphone,
-/// WhatsApp de contact des annonces, type de compte. Vérifiée par OTP SMS.
+/// WhatsApp de contact des annonces, type de compte. Vérifiée par OTP SMS
+/// ou email au choix.
 class RegisterAnnonceurScreen extends StatefulWidget {
   const RegisterAnnonceurScreen({super.key});
 
@@ -32,6 +34,7 @@ class _RegisterAnnonceurScreenState extends State<RegisterAnnonceurScreen> {
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   String _type = 'bailleur';
+  String _otpChannel = 'sms';
   bool _loading = false;
 
   @override
@@ -59,21 +62,24 @@ class _RegisterAnnonceurScreenState extends State<RegisterAnnonceurScreen> {
     setState(() => _loading = true);
     try {
       final phone = _phoneController.text.trim();
-      await _authRepository.requestOtp(phone);
+      final email = _emailController.text.trim();
+      final identifier = _otpChannel == 'email' ? email : phone;
+      await _authRepository.requestOtp(identifier);
       if (!mounted) return;
       final verified = await openAuthFlow<bool>(
         context,
         (_) => OtpCodeScreen(
-          identifier: phone,
+          identifier: identifier,
           onSubmit: (code) => _authRepository.registerAnnonceur(
             phoneNumber: phone,
-            email: _emailController.text.trim(),
+            email: email,
             fullName: _nameController.text.trim(),
             whatsappNumber: _whatsappController.text.trim(),
             annonceurType: _type,
             password: _passwordController.text,
             passwordConfirm: _passwordConfirmController.text,
             code: code,
+            otpChannel: _otpChannel,
           ),
         ),
       );
@@ -177,6 +183,11 @@ class _RegisterAnnonceurScreenState extends State<RegisterAnnonceurScreen> {
                 BcPasswordField(
                   controller: _passwordConfirmController,
                   label: 'Confirmer le mot de passe',
+                ),
+                const SizedBox(height: 16),
+                BcOtpChannelSelect(
+                  value: _otpChannel,
+                  onChanged: (v) => setState(() => _otpChannel = v),
                 ),
                 const SizedBox(height: 22),
                 BcButton(
