@@ -1,8 +1,6 @@
-import json
-import urllib.error
-import urllib.request
 from abc import ABC, abstractmethod
 
+import requests
 from django.conf import settings
 from django.core.mail import send_mail
 
@@ -25,31 +23,34 @@ class ResendEmailProvider(EmailProvider):
     """Envoi via l'API HTTP de Resend (resend.com) — contourne le blocage/
     throttling SMTP sortant fréquent depuis les IP des plateformes cloud
     (ex. Gmail qui bloque silencieusement les connexions SMTP de Render),
-    contrairement à DjangoEmailProvider en mode smtp."""
+    contrairement à DjangoEmailProvider en mode smtp.
+
+    Utilise `requests` (pas urllib) avec des en-têtes explicites — un client
+    HTTP trop minimal (User-Agent générique, Accept absent) peut se faire
+    bloquer par la protection anti-bot Cloudflare qui protège l'API Resend
+    (constaté en prod : 403 "error code: 1010" avant même d'atteindre
+    l'application Resend)."""
 
     _ENDPOINT = "https://api.resend.com/emails"
 
     def send(self, to: str, subject: str, message: str) -> None:
-        payload = json.dumps({
-            "from": settings.DEFAULT_FROM_EMAIL,
-            "to": [to],
-            "subject": subject,
-            "text": message,
-        }).encode("utf-8")
-        request = urllib.request.Request(
+        response = requests.post(
             self._ENDPOINT,
-            data=payload,
-            method="POST",
+            json={
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "to": [to],
+                "subject": subject,
+                "text": message,
+            },
             headers={
                 "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "bailconnect-backend/1.0",
             },
+            timeout=settings.EMAIL_TIMEOUT,
         )
-        try:
-            urllib.request.urlopen(request, timeout=settings.EMAIL_TIMEOUT)
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", "replace")
-            raise RuntimeError(f"Resend a répondu {exc.code}: {body}") from exc
+        if not response.ok:
+            raise RuntimeError(f"Resend a répondu {response.status_code}: {response.text}")
 
 
 def get_email_provider() -> EmailProvider:

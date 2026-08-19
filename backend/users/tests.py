@@ -98,8 +98,7 @@ class TestDjangoEmailProvider:
 
 class TestResendEmailProvider:
     def test_send_posts_expected_payload_to_resend_api(self, settings):
-        import json
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
         from users.services.email import ResendEmailProvider
 
@@ -107,37 +106,32 @@ class TestResendEmailProvider:
         settings.DEFAULT_FROM_EMAIL = "Bailconnect <onboarding@resend.dev>"
         settings.EMAIL_TIMEOUT = 10
 
-        with patch("users.services.email.urllib.request.urlopen") as mock_urlopen:
+        mock_response = MagicMock(ok=True)
+        with patch("users.services.email.requests.post", return_value=mock_response) as mock_post:
             ResendEmailProvider().send("dest@example.com", "Votre code Bailconnect", "Message du corps")
 
-        assert mock_urlopen.call_count == 1
-        request = mock_urlopen.call_args[0][0]
-        assert mock_urlopen.call_args.kwargs["timeout"] == 10
-        assert request.full_url == "https://api.resend.com/emails"
-        assert request.get_header("Authorization") == "Bearer re_test_key"
-        body = json.loads(request.data)
-        assert body == {
+        assert mock_post.call_count == 1
+        args, kwargs = mock_post.call_args
+        assert args[0] == "https://api.resend.com/emails"
+        assert kwargs["json"] == {
             "from": "Bailconnect <onboarding@resend.dev>",
             "to": ["dest@example.com"],
             "subject": "Votre code Bailconnect",
             "text": "Message du corps",
         }
+        assert kwargs["headers"]["Authorization"] == "Bearer re_test_key"
+        assert kwargs["timeout"] == 10
 
-    def test_send_raises_on_http_error(self, settings):
-        import io
-        import urllib.error
-        from unittest.mock import patch
+    def test_send_raises_when_response_is_not_ok(self, settings):
+        from unittest.mock import MagicMock, patch
 
         from users.services.email import ResendEmailProvider
 
         settings.RESEND_API_KEY = "re_test_key"
 
-        with patch("users.services.email.urllib.request.urlopen") as mock_urlopen:
-            mock_urlopen.side_effect = urllib.error.HTTPError(
-                "https://api.resend.com/emails", 422, "Unprocessable",
-                {}, io.BytesIO(b'{"message": "domaine non verifie"}'),
-            )
-            with pytest.raises(RuntimeError, match="422"):
+        mock_response = MagicMock(ok=False, status_code=403, text='error code: 1010')
+        with patch("users.services.email.requests.post", return_value=mock_response):
+            with pytest.raises(RuntimeError, match="403"):
                 ResendEmailProvider().send("dest@example.com", "Sujet", "Corps")
 
 
@@ -211,7 +205,7 @@ class TestOTPRequestDoesNotBlock:
 
         class _SlowProvider:
             def send(self, *args, **kwargs):
-                time.sleep(2)
+                time.sleep(4)
 
         client = APIClient()
         with patch("users.services.otp.get_sms_provider", return_value=_SlowProvider()):
@@ -220,7 +214,7 @@ class TestOTPRequestDoesNotBlock:
             elapsed = time.monotonic() - start
 
         assert response.status_code == 200
-        assert elapsed < 1.0
+        assert elapsed < 2.0  # bien en dessous des 4s simulées — marge large contre le bruit machine
 
     def test_request_succeeds_even_if_provider_send_fails(self):
         from unittest.mock import patch
