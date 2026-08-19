@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../data/api_client.dart';
 import '../../data/favorite_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../data/lead_repository.dart';
+import '../../data/listing_repository.dart' show ListingMediaItem;
 import '../../data/messaging_repository.dart';
 import '../../data/report_repository.dart';
 import '../../theme/amenity_icons.dart';
@@ -17,6 +19,13 @@ import '../../widgets/bc_icon.dart';
 import '../../widgets/bc_mobile_frame.dart';
 import '../auth/auth_helpers.dart';
 import '../messaging/chat_screen.dart';
+
+ListingMediaItem? _videoOf(PublicListing listing) {
+  for (final m in listing.media) {
+    if (m.mediaType == 'video') return m;
+  }
+  return null;
+}
 
 const _reportReasons = [
   ('fausse_annonce', 'Fausse annonce'),
@@ -151,7 +160,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
               return Center(child: Text('Erreur : ${snapshot.error}'));
             }
             final listing = snapshot.data!;
-            final hasVideo = listing.media.any((m) => m.mediaType == 'video');
+            final video = _videoOf(listing);
             final photos = listing.media
                 .where((m) => m.mediaType == 'photo')
                 .toList();
@@ -170,7 +179,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                           child: Stack(
                             fit: StackFit.expand,
                             children: [
-                              if (photos.isNotEmpty)
+                              if (video != null)
+                                _DetailVideoPlayer(
+                                  url: video.file,
+                                  gradient: gradient,
+                                )
+                              else if (photos.isNotEmpty)
                                 Image.network(
                                   // listing.media[].file est déjà une URL
                                   // absolue (DRF la construit via
@@ -186,18 +200,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                               else
                                 Container(
                                   decoration: BoxDecoration(gradient: gradient),
-                                ),
-                              if (hasVideo)
-                                const Center(
-                                  child: CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: Colors.black38,
-                                    child: BcIcon(
-                                      'play',
-                                      size: 26,
-                                      color: Colors.white,
-                                    ),
-                                  ),
                                 ),
                               Positioned(
                                 top: 14,
@@ -621,6 +623,84 @@ class _ReportSheetState extends State<_ReportSheet> {
             variant: BcButtonVariant.amber,
             onPressed: _sending ? null : _submit,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lecteur vidéo de la fiche détail — contrôle basique (lecture/pause au
+/// tap), contrairement au fil qui lit en autoplay/boucle/muet. Dégradé
+/// affiché pendant l'initialisation.
+class _DetailVideoPlayer extends StatefulWidget {
+  final String url;
+  final Gradient gradient;
+
+  const _DetailVideoPlayer({required this.url, required this.gradient});
+
+  @override
+  State<_DetailVideoPlayer> createState() => _DetailVideoPlayerState();
+}
+
+class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
+  late final VideoPlayerController _controller;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..addListener(() {
+        if (mounted) setState(() {});
+      })
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() => _initialized = true);
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _togglePlay() {
+    _controller.value.isPlaying ? _controller.pause() : _controller.play();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return Container(
+        decoration: BoxDecoration(gradient: widget.gradient),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: _togglePlay,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: Clip.hardEdge,
+            child: SizedBox(
+              width: _controller.value.size.width,
+              height: _controller.value.size.height,
+              child: VideoPlayer(_controller),
+            ),
+          ),
+          if (!_controller.value.isPlaying)
+            const Center(
+              child: CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.black38,
+                child: BcIcon('play', size: 26, color: Colors.white),
+              ),
+            ),
         ],
       ),
     );

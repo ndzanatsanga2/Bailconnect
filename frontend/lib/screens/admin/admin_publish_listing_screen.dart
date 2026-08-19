@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../data/admin_repository.dart';
 import '../../data/api_client.dart';
 import '../../data/feed_repository.dart' show AmenityItem;
+import '../../data/media_limits.dart';
 import '../../data/neighborhoods.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
@@ -49,8 +50,11 @@ class _AdminPublishListingScreenState
   String? _neighborhood;
   final Set<int> _selectedAmenities = {};
   late Future<List<AmenityItem>> _amenitiesFuture;
-  final List<(XFile file, Uint8List bytes)> _pickedMedia = [];
+  final List<(XFile file, Uint8List bytes, String mediaType)> _pickedMedia =
+      [];
   bool _submitting = false;
+
+  bool get _hasVideo => _pickedMedia.any((m) => m.$3 == 'video');
 
   @override
   void initState() {
@@ -71,14 +75,38 @@ class _AdminPublishListingScreenState
     super.dispose();
   }
 
-  Future<void> _pickMedia() async {
+  Future<void> _pickPhoto() async {
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 85,
     );
     if (file == null) return;
+    await _addMedia(file, 'photo');
+  }
+
+  Future<void> _pickVideo() async {
+    final file = await _picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: kMaxVideoDuration,
+    );
+    if (file == null) return;
+    await _addMedia(file, 'video');
+  }
+
+  Future<void> _addMedia(XFile file, String mediaType) async {
     final bytes = await file.readAsBytes();
-    setState(() => _pickedMedia.add((file, bytes)));
+    if (bytes.length > kMaxMediaFileSizeBytes) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Fichier trop volumineux (max ${kMaxMediaFileSizeBytes ~/ (1024 * 1024)} Mo).',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() => _pickedMedia.add((file, bytes, mediaType)));
   }
 
   Future<void> _submit() async {
@@ -112,10 +140,10 @@ class _AdminPublishListingScreenState
         seedContactPhone: _seedPhoneController.text.trim(),
       );
 
-      for (final (file, bytes) in _pickedMedia) {
+      for (final (file, bytes, mediaType) in _pickedMedia) {
         await _repository.uploadListingMedia(
           listingId: listing.id,
-          mediaType: 'photo',
+          mediaType: mediaType,
           bytes: bytes,
           filename: file.name,
         );
@@ -186,41 +214,26 @@ class _AdminPublishListingScreenState
                         _sectionCard(
                           title: 'Média',
                           children: [
-                            InkWell(
-                              onTap: _pickMedia,
-                              borderRadius: BorderRadius.circular(15),
-                              child: Container(
-                                height: 110,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(
-                                    color: AppColors.green,
-                                    width: 2,
-                                  ),
-                                  color: AppColors.greenLight,
-                                ),
-                                child: const Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      BcIcon(
-                                        'images',
-                                        size: 26,
-                                        color: AppColors.greenDark,
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        'Ajouter photos / vidéo',
-                                        style: TextStyle(
-                                          color: AppColors.greenDark,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ],
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _mediaPickButton(
+                                    icon: 'images',
+                                    label: 'Ajouter des photos',
+                                    onTap: _pickPhoto,
                                   ),
                                 ),
-                              ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _mediaPickButton(
+                                    icon: 'video',
+                                    label: _hasVideo
+                                        ? 'Vidéo ajoutée'
+                                        : 'Ajouter une vidéo (60 s max)',
+                                    onTap: _hasVideo ? null : _pickVideo,
+                                  ),
+                                ),
+                              ],
                             ),
                             if (_pickedMedia.isNotEmpty) ...[
                               const SizedBox(height: 10),
@@ -231,15 +244,8 @@ class _AdminPublishListingScreenState
                                   itemCount: _pickedMedia.length,
                                   separatorBuilder: (_, _) =>
                                       const SizedBox(width: 8),
-                                  itemBuilder: (context, index) => ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.memory(
-                                      _pickedMedia[index].$2,
-                                      width: 56,
-                                      height: 56,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
+                                  itemBuilder: (context, index) =>
+                                      _mediaThumbnail(_pickedMedia[index]),
                                 ),
                               ),
                             ],
@@ -411,6 +417,73 @@ class _AdminPublishListingScreenState
           ...children,
         ],
       ),
+    );
+  }
+
+  Widget _mediaPickButton({
+    required String icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        height: 88,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: enabled ? AppColors.green : AppColors.line,
+            width: 2,
+          ),
+          color: enabled ? AppColors.greenLight : const Color(0xFFEEF2F0),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BcIcon(
+                icon,
+                size: 22,
+                color: enabled ? AppColors.greenDark : AppColors.sub,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: enabled ? AppColors.greenDark : AppColors.sub,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mediaThumbnail((XFile file, Uint8List bytes, String mediaType) media) {
+    final (_, bytes, mediaType) = media;
+    if (mediaType == 'video') {
+      return Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Center(
+          child: BcIcon('video', size: 20, color: Colors.white),
+        ),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.memory(bytes, width: 56, height: 56, fit: BoxFit.cover),
     );
   }
 

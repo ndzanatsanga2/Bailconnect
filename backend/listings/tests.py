@@ -101,6 +101,50 @@ class TestListingMediaUpload:
         buffer.name = "photo.jpg"
         return buffer
 
+    def _video_file(self):
+        buffer = io.BytesIO(b"fake-mp4-bytes")
+        buffer.name = "visite.mp4"
+        return buffer
+
+    def test_owner_can_upload_video(self):
+        annonceur = make_annonceur("+237600000132")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": self._video_file(), "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+        assert response.data["media_type"] == "video"
+        media = Listing.objects.get(id=listing["id"]).media.get()
+        assert media.media_type == "video"
+
+    def test_owner_can_mix_photos_and_a_video_on_the_same_listing(self):
+        annonceur = make_annonceur("+237600000133")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": self._image_file(), "order": 0},
+            format="multipart",
+        )
+        client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": self._video_file(), "order": 1},
+            format="multipart",
+        )
+
+        media_types = sorted(
+            Listing.objects.get(id=listing["id"]).media.values_list("media_type", flat=True)
+        )
+        assert media_types == ["photo", "video"]
+
     def test_owner_can_upload_media(self):
         annonceur = make_annonceur("+237600000130")
         client = APIClient()
@@ -254,6 +298,39 @@ class TestFeed:
 
         file_url = response.data[0]["media"][0]["file"]
         assert file_url.startswith("http://testserver/")
+
+    def test_feed_exposes_both_photo_and_video_media_with_correct_types(self):
+        """Pipeline bout en bout : upload photo + vidéo → /api/feed/ renvoie
+        les deux avec leur media_type et une URL absolue chacun — c'est ce
+        que feed_screen.dart utilise pour choisir Image.network vs
+        VideoPlayer plutôt que le dégradé de secours."""
+        owner = make_annonceur("+237600000157")
+        listing = make_published_listing(owner=owner)
+        client = APIClient()
+        client.force_authenticate(owner)
+
+        photo = io.BytesIO()
+        Image.new("RGB", (10, 10), color="red").save(photo, format="JPEG")
+        photo.seek(0)
+        photo.name = "photo.jpg"
+        client.post(
+            f"/api/listings/{listing.id}/upload_media/",
+            {"media_type": "photo", "file": photo, "order": 0},
+            format="multipart",
+        )
+        video = io.BytesIO(b"fake-mp4-bytes")
+        video.name = "visite.mp4"
+        client.post(
+            f"/api/listings/{listing.id}/upload_media/",
+            {"media_type": "video", "file": video, "order": 1},
+            format="multipart",
+        )
+
+        response = APIClient().get("/api/feed/")
+
+        media = response.data[0]["media"]
+        assert {m["media_type"] for m in media} == {"photo", "video"}
+        assert all(m["file"].startswith("http://testserver/") for m in media)
 
 
 class TestFavorites:

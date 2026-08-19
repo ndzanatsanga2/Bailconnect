@@ -140,6 +140,28 @@ class TestAdminListingModeration:
         assert response.status_code == 201
         assert Listing.objects.get(id=listing["id"]).media.count() == 1
 
+    def test_admin_can_upload_video_media(self):
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000924"))
+        listing = client.post("/api/admin/listings/", {
+            "title": "Chambre amorçage", "neighborhood": "Essos",
+            "property_type": Listing.PropertyType.CHAMBRE, "rent_amount": 30000,
+            "whatsapp_number": "+237600001103",
+        }).data
+
+        video = io.BytesIO(b"fake-mp4-bytes")
+        video.name = "visite.mp4"
+
+        response = client.post(
+            f"/api/admin/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": video, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+        assert response.data["media_type"] == "video"
+        assert response.data["file"].startswith("http://testserver/")
+
 
 class TestAdminUsers:
     def test_admin_can_list_users_filtered_by_role(self):
