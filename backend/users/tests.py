@@ -1,4 +1,5 @@
 import pytest
+from django.core.cache import cache
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -110,6 +111,48 @@ class TestOTPRequestEndpoint:
         client = APIClient()
         response = client.get("/api/auth/me/")
         assert response.status_code == 401
+
+
+class TestOTPRequestThrottle:
+    def setup_method(self):
+        cache.clear()
+
+    def teardown_method(self):
+        cache.clear()
+
+    def test_repeated_requests_for_same_identifier_get_throttled(self):
+        client = APIClient()
+        identifier = "throttle-target@example.com"
+
+        for _ in range(5):
+            response = client.post("/api/auth/otp/request/", {"email": identifier})
+            assert response.status_code == 200
+
+        response = client.post("/api/auth/otp/request/", {"email": identifier})
+
+        assert response.status_code == 429
+        assert "Trop de demandes" in response.data["detail"]
+
+    def test_throttle_is_scoped_per_identifier(self):
+        client = APIClient()
+        for _ in range(5):
+            client.post("/api/auth/otp/request/", {"email": "busy-target@example.com"})
+
+        response = client.post("/api/auth/otp/request/", {"email": "other-target@example.com"})
+
+        assert response.status_code == 200
+
+    def test_requests_resume_after_the_window_clears(self):
+        client = APIClient()
+        identifier = "resumes-target@example.com"
+        for _ in range(5):
+            client.post("/api/auth/otp/request/", {"email": identifier})
+        assert client.post("/api/auth/otp/request/", {"email": identifier}).status_code == 429
+
+        cache.clear()  # simule l'expiration de la fenêtre glissante
+
+        response = client.post("/api/auth/otp/request/", {"email": identifier})
+        assert response.status_code == 200
 
 
 class TestRegisterClient:

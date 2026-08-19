@@ -175,6 +175,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    # otp_request : voir users/throttles.py (limite les spams de SMS/email).
+    "DEFAULT_THROTTLE_RATES": {
+        "otp_request": "5/hour",
+    },
 }
 
 

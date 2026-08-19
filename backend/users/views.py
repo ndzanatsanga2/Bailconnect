@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import Throttled
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +18,7 @@ from users.serializers import (
     UserSerializer,
 )
 from users.services.otp import generate_and_send_otp, verify_otp
+from users.throttles import OTPRequestThrottle
 
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
@@ -34,6 +36,15 @@ class RequestOTPView(APIView):
     et pour la réinitialisation du mot de passe."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [OTPRequestThrottle]
+
+    def throttled(self, request, wait):
+        detail = (
+            f"Trop de demandes de code. Réessayez dans {int(wait)} secondes."
+            if wait is not None
+            else "Trop de demandes de code. Réessayez plus tard."
+        )
+        raise Throttled(wait=wait, detail=detail)
 
     def post(self, request):
         serializer = OTPRequestSerializer(data=request.data)
