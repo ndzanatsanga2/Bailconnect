@@ -132,6 +132,22 @@ class TestListingMediaUpload:
 
         assert response.status_code == 404
 
+    def test_upload_media_response_returns_absolute_file_url(self):
+        """Le front construit l'URL directement depuis ce champ — une URL
+        relative y produirait une image cassée."""
+        annonceur = make_annonceur("+237600000142")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": self._image_file(), "order": 0},
+            format="multipart",
+        )
+
+        assert response.data["file"].startswith("http://testserver/")
+
 
 class TestAmenityList:
     def test_amenity_list_is_public(self):
@@ -214,6 +230,30 @@ class TestFeed:
 
         titles = [item["title"] for item in response.data]
         assert titles == ["Odza"]
+
+    def test_feed_media_file_url_is_absolute(self):
+        """Le front (feed_screen.dart, listing_detail_screen.dart) utilise ce
+        champ tel quel comme source d'image — une URL relative ou une URL
+        déjà absolue reconcaténée avec l'origine de l'API y produirait une
+        image cassée (dégradé de secours affiché en permanence)."""
+        owner = make_annonceur("+237600000156")
+        listing = make_published_listing(owner=owner)
+        client = APIClient()
+        client.force_authenticate(owner)
+        buffer = io.BytesIO()
+        Image.new("RGB", (10, 10), color="blue").save(buffer, format="JPEG")
+        buffer.seek(0)
+        buffer.name = "photo.jpg"
+        client.post(
+            f"/api/listings/{listing.id}/upload_media/",
+            {"media_type": "photo", "file": buffer, "order": 0},
+            format="multipart",
+        )
+
+        response = APIClient().get("/api/feed/")
+
+        file_url = response.data[0]["media"][0]["file"]
+        assert file_url.startswith("http://testserver/")
 
 
 class TestFavorites:

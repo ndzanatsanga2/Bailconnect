@@ -1,3 +1,4 @@
+import logging
 import secrets
 
 from django.conf import settings
@@ -5,6 +6,8 @@ from django.conf import settings
 from users.models import OTPCode
 from users.services.email import get_email_provider
 from users.services.sms import get_sms_provider
+
+logger = logging.getLogger("bailconnect.otp")
 
 
 def _generate_code(length: int) -> str:
@@ -27,10 +30,15 @@ def generate_and_send_otp(identifier: str) -> tuple[OTPCode, str]:
     otp.save()
 
     message = f"Votre code Bailconnect : {code}"
-    if channel == OTPCode.Channel.EMAIL:
-        get_email_provider().send(identifier, "Votre code Bailconnect", message)
-    else:
-        get_sms_provider().send(identifier, message)
+    try:
+        if channel == OTPCode.Channel.EMAIL:
+            get_email_provider().send(identifier, "Votre code Bailconnect", message)
+        else:
+            get_sms_provider().send(identifier, message)
+    except Exception:
+        logger.exception("Échec d'envoi OTP — canal=%s destinataire=%s", channel, identifier)
+        raise
+    logger.info("OTP envoyé — canal=%s destinataire=%s", channel, identifier)
 
     return otp, code
 

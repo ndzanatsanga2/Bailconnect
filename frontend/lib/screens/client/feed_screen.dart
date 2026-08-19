@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
-import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/favorite_repository.dart';
 import '../../data/feed_repository.dart';
@@ -20,11 +19,6 @@ import '../auth/auth_helpers.dart';
 // ClientShell.extendBody) — réservée pour que le bloc infos/actions ne passe
 // pas dessous.
 const _bottomNavReserve = 108.0;
-
-String _apiOrigin() {
-  final uri = Uri.parse(AppConfig.apiBaseUrl);
-  return '${uri.scheme}://${uri.authority}';
-}
 
 ListingMediaItem? _videoOf(PublicListing listing) {
   for (final m in listing.media) {
@@ -175,7 +169,10 @@ class _FeedScreenState extends State<FeedScreen> with WidgetsBindingObserver {
       if (video == null) continue;
       final controller =
           VideoPlayerController.networkUrl(
-              Uri.parse('${_apiOrigin()}${video.file}'),
+              // listing.media[].file est déjà une URL absolue (DRF la
+              // construit via request.build_absolute_uri) — ne jamais la
+              // reconcaténer avec l'origine de l'API sous peine d'URL cassée.
+              Uri.parse(video.file),
             )
             ..setLooping(true)
             ..setVolume(_soundOn.contains(index) ? 1 : 0);
@@ -651,7 +648,9 @@ class _PhotoCarouselState extends State<_PhotoCarousel> {
           itemCount: widget.photos.length,
           onPageChanged: (i) => setState(() => _index = i),
           itemBuilder: (context, i) => Image.network(
-            '${_apiOrigin()}${widget.photos[i].file}',
+            // listing.media[].file est déjà une URL absolue (DRF la
+            // construit via request.build_absolute_uri).
+            widget.photos[i].file,
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) =>
                 Container(decoration: BoxDecoration(gradient: widget.gradient)),

@@ -44,7 +44,7 @@ class ListingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], parser_classes=[parsers.MultiPartParser])
     def upload_media(self, request, pk=None):
         listing = self.get_object()
-        serializer = ListingMediaSerializer(data=request.data)
+        serializer = ListingMediaSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         serializer.save(listing=listing)
         return Response(serializer.data, status=201)

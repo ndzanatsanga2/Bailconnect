@@ -209,6 +209,25 @@ if EMAIL_PROVIDER == "smtp":
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# Logs applicatifs — sans ceci, les logger.info()/exception() du namespace
+# "bailconnect" (envoi OTP, SMS/email) ne produisent aucune sortie visible :
+# Django ne configure par défaut que ses propres loggers internes, pas les
+# nôtres. StreamHandler écrit sur stderr, capturé par les logs Render.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "bailconnect": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 # Fraîcheur des annonces : jours sans confirmation avant expiration auto (7-10 j)
 LISTING_EXPIRY_DAYS = env.int("LISTING_EXPIRY_DAYS", default=7)
 
@@ -232,6 +251,12 @@ if STORAGE_BACKEND == "s3":
     AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
+    # Photos/vidéos d'annonces = médias publics (fil consultable sans
+    # connexion) : URLs stables, sans signature qui expire — le bucket (ou
+    # AWS_S3_CUSTOM_DOMAIN, ex. domaine public R2/CDN) doit être accessible
+    # en lecture publique.
+    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", default="")
 else:
     STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
     MEDIA_URL = "media/"

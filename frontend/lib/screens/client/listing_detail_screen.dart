@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/favorite_repository.dart';
 import '../../data/feed_repository.dart';
@@ -173,7 +172,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                             children: [
                               if (photos.isNotEmpty)
                                 Image.network(
-                                  '${_apiOrigin()}${photos.first.file}',
+                                  // listing.media[].file est déjà une URL
+                                  // absolue (DRF la construit via
+                                  // request.build_absolute_uri).
+                                  photos.first.file,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, _, _) => Container(
                                     decoration: BoxDecoration(
@@ -507,11 +509,6 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         child: Center(child: BcIcon(icon, size: 16, color: Colors.white)),
       ),
     );
-  }
-
-  String _apiOrigin() {
-    final uri = Uri.parse(AppConfig.apiBaseUrl);
-    return '${uri.scheme}://${uri.authority}';
   }
 }
 
