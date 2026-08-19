@@ -1,5 +1,6 @@
 import logging
 import secrets
+import threading
 
 from django.conf import settings
 
@@ -18,6 +19,23 @@ def channel_for(identifier: str) -> str:
     return OTPCode.Channel.EMAIL if "@" in identifier else OTPCode.Channel.SMS
 
 
+def _dispatch(channel: str, identifier: str, message: str) -> None:
+    """Envoi effectif — exécuté hors du thread de la requête HTTP (voir
+    generate_and_send_otp) car un fournisseur SMTP/SMS externe peut bloquer
+    plusieurs dizaines de secondes (ex. Gmail qui bloque silencieusement les
+    IP des plateformes cloud comme Render) et tuer le worker gunicorn avant
+    qu'une réponse ne soit renvoyée."""
+    try:
+        if channel == OTPCode.Channel.EMAIL:
+            get_email_provider().send(identifier, "Votre code Bailconnect", message)
+        else:
+            get_sms_provider().send(identifier, message)
+    except Exception:
+        logger.exception("Échec d'envoi OTP — canal=%s destinataire=%s", channel, identifier)
+        return
+    logger.info("OTP envoyé — canal=%s destinataire=%s", channel, identifier)
+
+
 def generate_and_send_otp(identifier: str) -> tuple[OTPCode, str]:
     channel = channel_for(identifier)
     code = _generate_code(settings.OTP_CODE_LENGTH)
@@ -30,15 +48,7 @@ def generate_and_send_otp(identifier: str) -> tuple[OTPCode, str]:
     otp.save()
 
     message = f"Votre code Bailconnect : {code}"
-    try:
-        if channel == OTPCode.Channel.EMAIL:
-            get_email_provider().send(identifier, "Votre code Bailconnect", message)
-        else:
-            get_sms_provider().send(identifier, message)
-    except Exception:
-        logger.exception("Échec d'envoi OTP — canal=%s destinataire=%s", channel, identifier)
-        raise
-    logger.info("OTP envoyé — canal=%s destinataire=%s", channel, identifier)
+    threading.Thread(target=_dispatch, args=(channel, identifier, message), daemon=True).start()
 
     return otp, code
 

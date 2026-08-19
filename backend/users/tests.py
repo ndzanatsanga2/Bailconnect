@@ -96,6 +96,51 @@ class TestDjangoEmailProvider:
         assert "Message du corps" in sent.body
 
 
+class TestResendEmailProvider:
+    def test_send_posts_expected_payload_to_resend_api(self, settings):
+        import json
+        from unittest.mock import patch
+
+        from users.services.email import ResendEmailProvider
+
+        settings.RESEND_API_KEY = "re_test_key"
+        settings.DEFAULT_FROM_EMAIL = "Bailconnect <onboarding@resend.dev>"
+        settings.EMAIL_TIMEOUT = 10
+
+        with patch("users.services.email.urllib.request.urlopen") as mock_urlopen:
+            ResendEmailProvider().send("dest@example.com", "Votre code Bailconnect", "Message du corps")
+
+        assert mock_urlopen.call_count == 1
+        request = mock_urlopen.call_args[0][0]
+        assert mock_urlopen.call_args.kwargs["timeout"] == 10
+        assert request.full_url == "https://api.resend.com/emails"
+        assert request.get_header("Authorization") == "Bearer re_test_key"
+        body = json.loads(request.data)
+        assert body == {
+            "from": "Bailconnect <onboarding@resend.dev>",
+            "to": ["dest@example.com"],
+            "subject": "Votre code Bailconnect",
+            "text": "Message du corps",
+        }
+
+    def test_send_raises_on_http_error(self, settings):
+        import io
+        import urllib.error
+        from unittest.mock import patch
+
+        from users.services.email import ResendEmailProvider
+
+        settings.RESEND_API_KEY = "re_test_key"
+
+        with patch("users.services.email.urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.side_effect = urllib.error.HTTPError(
+                "https://api.resend.com/emails", 422, "Unprocessable",
+                {}, io.BytesIO(b'{"message": "domaine non verifie"}'),
+            )
+            with pytest.raises(RuntimeError, match="422"):
+                ResendEmailProvider().send("dest@example.com", "Sujet", "Corps")
+
+
 class TestOTPRequestEndpoint:
     def test_request_without_identifier_returns_400(self):
         client = APIClient()
@@ -152,6 +197,42 @@ class TestOTPRequestThrottle:
         cache.clear()  # simule l'expiration de la fenêtre glissante
 
         response = client.post("/api/auth/otp/request/", {"email": identifier})
+        assert response.status_code == 200
+
+
+class TestOTPRequestDoesNotBlock:
+    """L'envoi effectif (SMTP/SMS) se fait dans un thread à part — la
+    requête HTTP ne doit jamais attendre dessus, même si le fournisseur est
+    lent ou échoue (cause du WORKER TIMEOUT observé en prod avec Gmail)."""
+
+    def test_request_returns_immediately_even_if_provider_is_slow(self):
+        import time
+        from unittest.mock import patch
+
+        class _SlowProvider:
+            def send(self, *args, **kwargs):
+                time.sleep(2)
+
+        client = APIClient()
+        with patch("users.services.otp.get_sms_provider", return_value=_SlowProvider()):
+            start = time.monotonic()
+            response = client.post("/api/auth/otp/request/", {"phone_number": "+237600000910"})
+            elapsed = time.monotonic() - start
+
+        assert response.status_code == 200
+        assert elapsed < 1.0
+
+    def test_request_succeeds_even_if_provider_send_fails(self):
+        from unittest.mock import patch
+
+        class _FailingProvider:
+            def send(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        client = APIClient()
+        with patch("users.services.otp.get_sms_provider", return_value=_FailingProvider()):
+            response = client.post("/api/auth/otp/request/", {"phone_number": "+237600000911"})
+
         assert response.status_code == 200
 
 

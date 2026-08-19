@@ -194,10 +194,15 @@ OTP_EXPIRY_MINUTES = env.int("OTP_EXPIRY_MINUTES", default=5)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
 
 # Email / OTP (interface abstraite — voir users/services/email.py)
-# EMAIL_PROVIDER: console (dev) ou smtp (prod) — s'appuie sur l'abstraction
-# EMAIL_BACKEND déjà fournie par Django.
+# EMAIL_PROVIDER: console (dev), smtp, ou resend (API HTTP — évite le
+# blocage/throttling SMTP sortant fréquent depuis les IP des plateformes
+# cloud, ex. Gmail qui bloque silencieusement les connexions SMTP de Render).
 EMAIL_PROVIDER = env("EMAIL_PROVIDER", default="console")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Bailconnect <no-reply@bailconnect.cm>")
+# Délai max avant abandon d'un envoi (SMTP ou API HTTP Resend) — sans ceci,
+# un SMTP qui bloque peut pendre bien plus longtemps que le timeout du
+# worker gunicorn (30s par défaut) et le faire tuer.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 if EMAIL_PROVIDER == "smtp":
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -206,6 +211,8 @@ if EMAIL_PROVIDER == "smtp":
     EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
     EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
     EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+elif EMAIL_PROVIDER == "resend":
+    RESEND_API_KEY = env("RESEND_API_KEY", default="")
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
