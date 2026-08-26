@@ -250,25 +250,39 @@ STORAGES = {
 }
 
 if STORAGE_BACKEND == "s3":
-    STORAGES["default"] = {"BACKEND": "storages.backends.s3.S3Storage"}
-    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
-    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
-    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
-    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="")
-    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="")
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_DEFAULT_ACL = None
-    # Photos/vidéos d'annonces = médias publics (fil consultable sans
-    # connexion) : URLs stables, sans signature qui expire — le bucket (ou
-    # AWS_S3_CUSTOM_DOMAIN, ex. domaine public R2/CDN) doit être accessible
-    # en lecture publique.
-    AWS_QUERYSTRING_AUTH = False
-    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", default="")
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": env("AWS_ACCESS_KEY_ID", default=""),
+            "secret_key": env("AWS_SECRET_ACCESS_KEY", default=""),
+            "bucket_name": env("AWS_STORAGE_BUCKET_NAME", default=""),
+            "endpoint_url": env("AWS_S3_ENDPOINT_URL", default=""),
+            # R2 exige "auto" (pas de région réelle) — voir doc Cloudflare.
+            "region_name": env("AWS_S3_REGION_NAME", default="auto"),
+            # Domaine public servant les médias (ex. bucket.r2.dev, ou
+            # domaine custom connecté au bucket).
+            "custom_domain": env("AWS_S3_CUSTOM_DOMAIN", default=""),
+            "file_overwrite": False,
+            # R2 ne supporte pas les ACL d'objets — une ACL explicite ferait
+            # échouer l'upload.
+            "default_acl": None,
+            # Photos/vidéos d'annonces = médias publics (fil consultable sans
+            # connexion) : URLs stables, sans signature qui expire — le
+            # bucket (ou custom_domain ci-dessus) doit être accessible en
+            # lecture publique.
+            "querystring_auth": False,
+        },
+    }
 else:
     STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
     MEDIA_URL = "media/"
     MEDIA_ROOT = BASE_DIR / "media"
 
+# Diagnostic déploiement — visible dans les logs Render au démarrage du
+# worker, pour confirmer quel backend est réellement actif en prod (un
+# STORAGE_BACKEND mal positionné en amont bascule silencieusement sur le
+# disque local éphémère, sans erreur ni exception).
+print(f"[bailconnect] Storage backend actif : {STORAGES['default']['BACKEND']}")
 
 # Divers
 
