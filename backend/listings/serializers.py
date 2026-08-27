@@ -7,7 +7,14 @@ from listings.models import Amenity, Favorite, Listing, ListingMedia
 
 # Miroir serveur de kMaxMediaFileSizeBytes (frontend/lib/data/media_limits.dart)
 # — la limite côté client est contournable via un appel direct à l'API.
-MAX_MEDIA_FILE_SIZE_BYTES = 40 * 1024 * 1024
+# 150 Mo couvre une vidéo de MAX_VIDEO_DURATION_SECONDS en qualité correcte
+# (~1080p) sans être ingérable sur le plan gratuit R2/S3.
+MAX_MEDIA_FILE_SIZE_BYTES = 150 * 1024 * 1024
+
+# Miroir serveur de kMaxVideoDuration (frontend/lib/data/media_limits.dart).
+# duration_seconds est déclaratif (mesuré côté client, comme le Content-Type)
+# — pas de re-vérification depuis les octets, faute de dépendance ffmpeg.
+MAX_VIDEO_DURATION_SECONDS = 90
 
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_VIDEO_CONTENT_TYPES = {"video/mp4", "video/quicktime", "video/webm"}
@@ -51,6 +58,11 @@ class ListingMediaSerializer(serializers.ModelSerializer):
             if file.content_type not in ALLOWED_VIDEO_CONTENT_TYPES:
                 raise serializers.ValidationError(
                     {"file": "Format vidéo non supporté (MP4, MOV ou WebM attendu)."}
+                )
+            duration = attrs.get("duration_seconds")
+            if duration is not None and duration > MAX_VIDEO_DURATION_SECONDS:
+                raise serializers.ValidationError(
+                    {"duration_seconds": f"Vidéo trop longue (max {MAX_VIDEO_DURATION_SECONDS} s)."}
                 )
 
         return attrs

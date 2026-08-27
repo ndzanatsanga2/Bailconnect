@@ -246,6 +246,38 @@ class TestListingMediaUpload:
         assert response.status_code == 400
         assert Listing.objects.get(id=listing["id"]).media.count() == 0
 
+    def test_upload_rejects_video_longer_than_max_duration(self):
+        annonceur = make_annonceur("+237600000147")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        video = SimpleUploadedFile("visite.mp4", b"fake-mp4-bytes", content_type="video/mp4")
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": video, "order": 0, "duration_seconds": 91},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert Listing.objects.get(id=listing["id"]).media.count() == 0
+
+    def test_upload_accepts_video_at_max_duration(self):
+        annonceur = make_annonceur("+237600000148")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        video = SimpleUploadedFile("visite.mp4", b"fake-mp4-bytes", content_type="video/mp4")
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": video, "order": 0, "duration_seconds": 90},
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+        assert Listing.objects.get(id=listing["id"]).media.count() == 1
+
     def test_upload_media_response_returns_absolute_file_url(self):
         """Le front construit l'URL directement depuis ce champ — une URL
         relative y produirait une image cassée."""

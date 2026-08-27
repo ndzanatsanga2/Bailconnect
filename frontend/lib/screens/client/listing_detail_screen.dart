@@ -16,6 +16,7 @@ import '../../widgets/bc_badge.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_icon.dart';
+import '../../widgets/bc_media_stage.dart';
 import '../../widgets/bc_mobile_frame.dart';
 import '../auth/auth_helpers.dart';
 import '../messaging/chat_screen.dart';
@@ -185,16 +186,24 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                   gradient: gradient,
                                 )
                               else if (photos.isNotEmpty)
-                                Image.network(
+                                BcMediaStage(
                                   // listing.media[].file est déjà une URL
                                   // absolue (DRF la construit via
                                   // request.build_absolute_uri).
-                                  photos.first.file,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                    decoration: BoxDecoration(
-                                      gradient: gradient,
+                                  cover: Image.network(
+                                    photos.first.file,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => Container(
+                                      decoration: BoxDecoration(
+                                        gradient: gradient,
+                                      ),
                                     ),
+                                  ),
+                                  contain: Image.network(
+                                    photos.first.file,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, _, _) =>
+                                        const SizedBox.shrink(),
                                   ),
                                 )
                               else
@@ -684,14 +693,9 @@ class _DetailVideoPlayerState extends State<_DetailVideoPlayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            clipBehavior: Clip.hardEdge,
-            child: SizedBox(
-              width: _controller.value.size.width,
-              height: _controller.value.size.height,
-              child: VideoPlayer(_controller),
-            ),
+          BcMediaStage(
+            cover: bcVideoFit(_controller, BoxFit.cover),
+            contain: bcVideoFit(_controller, BoxFit.contain),
           ),
           if (!_controller.value.isPlaying)
             const Center(

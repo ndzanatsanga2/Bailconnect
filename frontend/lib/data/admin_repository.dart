@@ -263,13 +263,18 @@ class AdminRepository {
     required String mediaType,
     required List<int> bytes,
     required String filename,
+    int? durationSeconds,
   }) {
     return _api.uploadFile(
       '/api/admin/listings/$listingId/upload_media/',
       fieldName: 'file',
       bytes: bytes,
       filename: filename,
-      fields: {'media_type': mediaType},
+      fields: {
+        'media_type': mediaType,
+        if (durationSeconds != null)
+          'duration_seconds': durationSeconds.toString(),
+      },
     );
   }
 

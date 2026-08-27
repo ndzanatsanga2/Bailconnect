@@ -13,6 +13,7 @@ import '../../theme/app_gradients.dart';
 import '../../widgets/bc_badge.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
+import '../../widgets/bc_media_stage.dart';
 import '../auth/auth_helpers.dart';
 
 // Hauteur approximative de BcBottomNav (superposée par-dessus le média, voir
@@ -605,14 +606,9 @@ class _VideoBackground extends StatelessWidget {
     if (c == null || !c.value.isInitialized) {
       return Container(decoration: BoxDecoration(gradient: gradient));
     }
-    return FittedBox(
-      fit: BoxFit.cover,
-      clipBehavior: Clip.hardEdge,
-      child: SizedBox(
-        width: c.value.size.width,
-        height: c.value.size.height,
-        child: VideoPlayer(c),
-      ),
+    return BcMediaStage(
+      cover: bcVideoFit(c, BoxFit.cover),
+      contain: bcVideoFit(c, BoxFit.contain),
     );
   }
 }
@@ -647,13 +643,23 @@ class _PhotoCarouselState extends State<_PhotoCarousel> {
           scrollDirection: Axis.horizontal,
           itemCount: widget.photos.length,
           onPageChanged: (i) => setState(() => _index = i),
-          itemBuilder: (context, i) => Image.network(
+          itemBuilder: (context, i) => BcMediaStage(
             // listing.media[].file est déjà une URL absolue (DRF la
-            // construit via request.build_absolute_uri).
-            widget.photos[i].file,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) =>
-                Container(decoration: BoxDecoration(gradient: widget.gradient)),
+            // construit via request.build_absolute_uri) — même URL des deux
+            // côtés, l'image décodée est partagée via l'ImageCache (pas de
+            // second appel réseau).
+            cover: Image.network(
+              widget.photos[i].file,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                decoration: BoxDecoration(gradient: widget.gradient),
+              ),
+            ),
+            contain: Image.network(
+              widget.photos[i].file,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
           ),
         ),
         if (widget.photos.length > 1)

@@ -8,6 +8,7 @@ import '../../data/api_client.dart';
 import '../../data/feed_repository.dart' show AmenityItem;
 import '../../data/media_limits.dart';
 import '../../data/neighborhoods.dart';
+import '../../data/video_duration.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
@@ -50,8 +51,8 @@ class _AdminPublishListingScreenState
   String? _neighborhood;
   final Set<int> _selectedAmenities = {};
   late Future<List<AmenityItem>> _amenitiesFuture;
-  final List<(XFile file, Uint8List bytes, String mediaType)> _pickedMedia =
-      [];
+  final List<(XFile file, Uint8List bytes, String mediaType, int? durationSeconds)>
+  _pickedMedia = [];
   bool _submitting = false;
 
   bool get _hasVideo => _pickedMedia.any((m) => m.$3 == 'video');
@@ -106,7 +107,23 @@ class _AdminPublishListingScreenState
       );
       return;
     }
-    setState(() => _pickedMedia.add((file, bytes, mediaType)));
+    int? durationSeconds;
+    if (mediaType == 'video') {
+      final duration = await probeVideoDuration(file);
+      if (duration != null && duration > kMaxVideoDuration) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Vidéo trop longue (max ${kMaxVideoDuration.inSeconds} s).',
+            ),
+          ),
+        );
+        return;
+      }
+      durationSeconds = duration?.inSeconds;
+    }
+    setState(() => _pickedMedia.add((file, bytes, mediaType, durationSeconds)));
   }
 
   Future<void> _submit() async {
@@ -140,12 +157,13 @@ class _AdminPublishListingScreenState
         seedContactPhone: _seedPhoneController.text.trim(),
       );
 
-      for (final (file, bytes, mediaType) in _pickedMedia) {
+      for (final (file, bytes, mediaType, durationSeconds) in _pickedMedia) {
         await _repository.uploadListingMedia(
           listingId: listing.id,
           mediaType: mediaType,
           bytes: bytes,
           filename: file.name,
+          durationSeconds: durationSeconds,
         );
       }
 
@@ -229,7 +247,7 @@ class _AdminPublishListingScreenState
                                     icon: 'video',
                                     label: _hasVideo
                                         ? 'Vidéo ajoutée'
-                                        : 'Ajouter une vidéo (60 s max)',
+                                        : 'Ajouter une vidéo (1m30 max)',
                                     onTap: _hasVideo ? null : _pickVideo,
                                   ),
                                 ),
@@ -466,8 +484,10 @@ class _AdminPublishListingScreenState
     );
   }
 
-  Widget _mediaThumbnail((XFile file, Uint8List bytes, String mediaType) media) {
-    final (_, bytes, mediaType) = media;
+  Widget _mediaThumbnail(
+    (XFile file, Uint8List bytes, String mediaType, int? durationSeconds) media,
+  ) {
+    final (_, bytes, mediaType, _) = media;
     if (mediaType == 'video') {
       return Container(
         width: 56,
