@@ -2,12 +2,14 @@ import io
 from datetime import timedelta
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
 from listings.models import Amenity, Listing
+from listings.serializers import MAX_MEDIA_FILE_SIZE_BYTES
 from users.models import User
 
 pytestmark = pytest.mark.django_db
@@ -175,6 +177,74 @@ class TestListingMediaUpload:
         )
 
         assert response.status_code == 404
+
+    def test_upload_rejects_oversized_file(self):
+        annonceur = make_annonceur("+237600000143")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        oversized = SimpleUploadedFile(
+            "big.jpg", b"0" * (MAX_MEDIA_FILE_SIZE_BYTES + 1), content_type="image/jpeg"
+        )
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": oversized, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert Listing.objects.get(id=listing["id"]).media.count() == 0
+
+    def test_upload_rejects_disallowed_content_type_for_photo(self):
+        annonceur = make_annonceur("+237600000144")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        malicious = SimpleUploadedFile("script.html", b"<script>alert(1)</script>", content_type="text/html")
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": malicious, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert Listing.objects.get(id=listing["id"]).media.count() == 0
+
+    def test_upload_rejects_file_content_not_matching_declared_photo_type(self):
+        """Content-Type usurpé (image/jpeg) mais octets non conformes — doit
+        être rejeté par la vérification Pillow, pas seulement l'en-tête."""
+        annonceur = make_annonceur("+237600000145")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        fake_photo = SimpleUploadedFile("fake.jpg", b"not-actually-a-jpeg", content_type="image/jpeg")
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": fake_photo, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert Listing.objects.get(id=listing["id"]).media.count() == 0
+
+    def test_upload_rejects_disallowed_content_type_for_video(self):
+        annonceur = make_annonceur("+237600000146")
+        client = APIClient()
+        client.force_authenticate(annonceur)
+        listing = client.post("/api/listings/", listing_payload()).data
+
+        malicious = SimpleUploadedFile("script.js", b"alert(1)", content_type="application/javascript")
+        response = client.post(
+            f"/api/listings/{listing['id']}/upload_media/",
+            {"media_type": "video", "file": malicious, "order": 0},
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert Listing.objects.get(id=listing["id"]).media.count() == 0
 
     def test_upload_media_response_returns_absolute_file_url(self):
         """Le front construit l'URL directement depuis ce champ — une URL
