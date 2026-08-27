@@ -11,6 +11,7 @@ import '../../../widgets/bc_button.dart';
 import '../../../widgets/bc_content_bounds.dart';
 import '../../../widgets/bc_icon.dart';
 import '../../../widgets/bc_kpi_card.dart';
+import '../../../widgets/bc_listing_card.dart';
 import '../../../widgets/bc_logo.dart';
 import '../../messaging/chat_view.dart';
 import '../../messaging/conversations_list.dart';
@@ -272,10 +273,51 @@ class AnnonceurWebDashboard extends StatelessWidget {
                   ),
                 )
               else
-                _table(),
+                _listingsFeed(),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Fil des biens du bailleur — photo/vidéo réelle en vignette (pas un
+  /// simple tableau texte), plus les outils de gestion (fraîcheur) déjà
+  /// disponibles côté mobile.
+  Widget _listingsFeed() {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        for (final listing in listings)
+          SizedBox(width: 280, child: _listingFeedCard(listing)),
+      ],
+    );
+  }
+
+  Widget _listingFeedCard(Listing listing) {
+    final media = listing.media.isNotEmpty ? listing.media.first : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BcListingCard(
+          thumbnailGradient: AppGradients.all[listing.id % AppGradients.all.length],
+          thumbnailImageUrl: media?.mediaType == 'photo' ? media!.file : null,
+          neighborhood: listing.neighborhood,
+          durationLabel: media?.mediaType == 'video' ? 'Vidéo' : null,
+          title: listing.title,
+          status: _statusFor(listing.status),
+          pills: ['${listing.rentAmount} F'],
+        ),
+        if (listing.status == 'publiee' || listing.status == 'expiree') ...[
+          const SizedBox(height: 6),
+          FreshnessActions(
+            listing: listing,
+            repository: repository,
+            onChanged: onChanged,
+            compact: true,
+          ),
+        ],
       ],
     );
   }
@@ -338,89 +380,4 @@ class AnnonceurWebDashboard extends StatelessWidget {
     );
   }
 
-  Widget _table() {
-    return Table(
-      columnWidths: const {
-        0: FixedColumnWidth(96),
-        1: FlexColumnWidth(2),
-        2: FlexColumnWidth(1.4),
-        3: FlexColumnWidth(1.2),
-        4: FlexColumnWidth(1.2),
-        5: FlexColumnWidth(1.8),
-      },
-      children: [
-        _tableHeaderRow(),
-        for (final listing in listings) _tableRow(listing),
-      ],
-    );
-  }
-
-  TableRow _tableHeaderRow() {
-    TextStyle style = const TextStyle(
-      fontSize: 10.5,
-      fontWeight: FontWeight.w700,
-      color: AppColors.sub,
-      letterSpacing: 0.4,
-    );
-    Widget cell(String text) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      child: Text(text.toUpperCase(), style: style),
-    );
-    return TableRow(
-      children: [
-        cell('Aperçu'),
-        cell('Bien'),
-        cell('Quartier'),
-        cell('Loyer'),
-        cell('Statut'),
-        cell(''),
-      ],
-    );
-  }
-
-  TableRow _tableRow(Listing listing) {
-    final gradient = AppGradients.all[listing.id % AppGradients.all.length];
-    Widget cell(Widget child) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      child: DefaultTextStyle(
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.ink,
-        ),
-        child: child,
-      ),
-    );
-    return TableRow(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.line)),
-      ),
-      children: [
-        cell(
-          Container(
-            width: 68,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        cell(Text(listing.title)),
-        cell(Text(listing.neighborhood)),
-        cell(Text('${listing.rentAmount} F')),
-        cell(BcStatusBadge(_statusFor(listing.status))),
-        cell(
-          listing.status == 'publiee' || listing.status == 'expiree'
-              ? FreshnessActions(
-                  listing: listing,
-                  repository: repository,
-                  onChanged: onChanged,
-                  compact: true,
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
-    );
-  }
 }

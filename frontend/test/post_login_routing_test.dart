@@ -121,4 +121,37 @@ void main() {
       expect(find.text('ADMIN-SHELL'), findsNothing);
     });
   });
+
+  group('routeAfterAuth — exclusion client sur le web', () {
+    testWidgets(
+      'client pur (sans capacité annonceur) + web : déconnecté immédiatement avec message clair',
+      (tester) async {
+        final fakeRepo = _FakeAuthRepository();
+        late BuildContext capturedContext;
+
+        await tester.pumpWidget(
+          _appUnderTest((context) {
+            capturedContext = context;
+            return const SizedBox.shrink();
+          }),
+        );
+        await tester.pump();
+
+        await routeAfterAuth(
+          capturedContext,
+          _user(role: 'locataire'),
+          authRepository: fakeRepo,
+          isMobileBuild: false,
+        );
+        await tester.pump();
+
+        expect(fakeRepo.loggedOut, isTrue);
+        expect(find.text(kClientWebBlockedMessage), findsOneWidget);
+      },
+    );
+
+    // Le cas « capacité annonceur + web » n'a pas besoin d'un test dédié :
+    // ce cas retourne (push vers AnnonceurDashboardScreen) avant même
+    // d'atteindre la branche testée ci-dessus — voir routeAfterAuth.
+  });
 }

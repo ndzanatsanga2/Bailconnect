@@ -1,6 +1,7 @@
-import 'package:bailconnect/screens/admin/admin_login_screen.dart';
 import 'package:bailconnect/screens/admin/admin_publish_listing_screen.dart';
 import 'package:bailconnect/screens/auth/register_client_screen.dart';
+import 'package:bailconnect/screens/web/web_landing_screen.dart';
+import 'package:bailconnect/screens/web/web_login_screen.dart';
 import 'package:bailconnect/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,12 +45,21 @@ void main() {
     );
   });
 
-  testWidgets('admin login screen', (tester) async {
+  testWidgets('web login screen', (tester) async {
     await _capture(
       tester,
-      screen: const AdminLoginScreen(),
+      screen: const WebLoginScreen(),
       size: const Size(1300, 900),
-      goldenName: 'goldens/admin_login.png',
+      goldenName: 'goldens/web_login.png',
+    );
+  });
+
+  testWidgets('web landing screen', (tester) async {
+    await _capture(
+      tester,
+      screen: const WebLandingScreen(),
+      size: const Size(1300, 900),
+      goldenName: 'goldens/web_landing.png',
     );
   });
 }

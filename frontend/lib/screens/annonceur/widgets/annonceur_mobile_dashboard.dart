@@ -194,6 +194,9 @@ class AnnonceurMobileDashboard extends StatelessWidget {
             BcListingCard(
               thumbnailGradient:
                   AppGradients.all[listing.id % AppGradients.all.length],
+              thumbnailImageUrl: media?.mediaType == 'photo'
+                  ? media!.file
+                  : null,
               neighborhood: listing.neighborhood,
               durationLabel: media?.mediaType == 'video' ? 'Vidéo' : null,
               title: listing.title,

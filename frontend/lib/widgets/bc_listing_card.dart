@@ -7,6 +7,7 @@ import 'bc_icon.dart';
 /// Carte annonce du tableau de bord annonceur — classe .lcard du wireframe.
 class BcListingCard extends StatelessWidget {
   final Gradient thumbnailGradient;
+  final String? thumbnailImageUrl;
   final String neighborhood;
   final String? durationLabel;
   final String title;
@@ -17,6 +18,7 @@ class BcListingCard extends StatelessWidget {
   const BcListingCard({
     super.key,
     required this.thumbnailGradient,
+    this.thumbnailImageUrl,
     required this.neighborhood,
     this.durationLabel,
     required this.title,
@@ -50,10 +52,20 @@ class BcListingCard extends StatelessWidget {
             SizedBox(
               height: 132,
               child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(gradient: thumbnailGradient),
-                  ),
+                  if (thumbnailImageUrl != null)
+                    Image.network(
+                      thumbnailImageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => Container(
+                        decoration: BoxDecoration(gradient: thumbnailGradient),
+                      ),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(gradient: thumbnailGradient),
+                    ),
                   Positioned(
                     top: 10,
                     left: 10,

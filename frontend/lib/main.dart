@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-import 'screens/admin/admin_login_screen.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/client/client_shell.dart';
+import 'screens/web/web_landing_screen.dart';
+import 'screens/web/web_login_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -21,13 +23,16 @@ class BailconnectApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       initialRoute: '/',
+      // Séparation stricte des accès : le web est le back-office (landing +
+      // connexion, jamais l'espace client) ; l'app mobile native est
+      // l'espace client (fil, recherche, favoris — jamais le back-office).
       // Le back-office admin a sa propre route dédiée (kAdminRoute) — jamais
-      // atteint via un bouton dans l'app client/bailleur, uniquement par
-      // cette URL directe ou le routage automatique au rôle à la connexion.
+      // atteint via un bouton dans l'espace bailleur, uniquement par cette
+      // URL directe ou le routage automatique au rôle à la connexion.
       routes: {
-        '/': (context) => const ClientShell(),
+        '/': (context) => kIsWeb ? const WebLandingScreen() : const ClientShell(),
         kAdminRoute: (context) => const AdminShell(),
-        kAdminLoginRoute: (context) => const AdminLoginScreen(),
+        kAdminLoginRoute: (context) => const WebLoginScreen(),
       },
     );
   }
