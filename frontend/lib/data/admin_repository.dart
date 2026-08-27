@@ -217,6 +217,8 @@ class AdminRepository {
       _api.post('/api/admin/listings/$id/approve/', {});
   Future<void> rejectListing(int id) =>
       _api.post('/api/admin/listings/$id/reject/', {});
+  Future<void> deleteListing(int id) =>
+      _api.delete('/api/admin/listings/$id/');
 
   Future<List<AmenityItem>> amenities() async {
     final data = await _api.get('/api/amenities/') as List;

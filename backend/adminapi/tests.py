@@ -1,11 +1,12 @@
 import io
+import os
 
 import pytest
 from PIL import Image
 from rest_framework.test import APIClient
 
 from invitations.models import Invitation
-from listings.models import Listing
+from listings.models import Listing, ListingMedia
 from reports.models import Report
 from users.models import User
 
@@ -161,6 +162,64 @@ class TestAdminListingModeration:
         assert response.status_code == 201
         assert response.data["media_type"] == "video"
         assert response.data["file"].startswith("http://testserver/")
+
+
+class TestAdminListingDeletion:
+    def test_admin_can_delete_listing(self):
+        listing = make_listing(owner=make_annonceur("+237600000950"))
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000951"))
+
+        response = client.delete(f"/api/admin/listings/{listing.id}/")
+
+        assert response.status_code == 204
+        assert not Listing.objects.filter(id=listing.id).exists()
+
+    def test_deleting_listing_removes_media_files_from_storage(self):
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000952"))
+        listing = client.post("/api/admin/listings/", {
+            "title": "Studio à supprimer", "neighborhood": "Mvan",
+            "property_type": Listing.PropertyType.STUDIO, "rent_amount": 55000,
+            "whatsapp_number": "+237600001104",
+        }).data
+
+        buffer = io.BytesIO()
+        Image.new("RGB", (10, 10), color="blue").save(buffer, format="JPEG")
+        buffer.seek(0)
+        buffer.name = "photo.jpg"
+        upload_response = client.post(
+            f"/api/admin/listings/{listing['id']}/upload_media/",
+            {"media_type": "photo", "file": buffer, "order": 0},
+            format="multipart",
+        )
+        media_path = ListingMedia.objects.get(id=upload_response.data["id"]).file.path
+        assert os.path.exists(media_path)
+
+        response = client.delete(f"/api/admin/listings/{listing['id']}/")
+
+        assert response.status_code == 204
+        assert not os.path.exists(media_path)
+        assert not ListingMedia.objects.filter(listing_id=listing["id"]).exists()
+
+    def test_non_admin_cannot_delete_listing(self):
+        listing = make_listing(owner=make_annonceur("+237600000953"))
+        client = APIClient()
+        client.force_authenticate(make_annonceur("+237600000954"))
+
+        response = client.delete(f"/api/admin/listings/{listing.id}/")
+
+        assert response.status_code == 403
+        assert Listing.objects.filter(id=listing.id).exists()
+
+    def test_unauthenticated_cannot_delete_listing(self):
+        listing = make_listing(owner=make_annonceur("+237600000955"))
+        client = APIClient()
+
+        response = client.delete(f"/api/admin/listings/{listing.id}/")
+
+        assert response.status_code == 401
+        assert Listing.objects.filter(id=listing.id).exists()
 
 
 class TestAdminUsers:

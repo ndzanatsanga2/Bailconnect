@@ -64,6 +64,34 @@ convient : renseigner `EMAIL_HOST`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`
 avec les identifiants de leur relais SMTP — aucune intégration API dédiée
 n'est nécessaire.
 
+## Mode test sans OTP (OTP_REQUIRED=false)
+
+À utiliser uniquement quand l'envoi de code (SMS/email) est indisponible côté
+fournisseur — **jamais en lancement public réel**, car cela désactive toute
+vérification de propriété de l'email/téléphone saisi à l'inscription.
+
+Backend (`backend/.env` ou variable d'environnement Render) :
+```
+OTP_REQUIRED=False
+```
+Effet : l'inscription (client et bailleur) crée le compte directement, sans
+étape de code. `/api/auth/otp/request/` et
+`/api/auth/password/reset/confirm/` répondent `503` (indisponibles) —
+la réinitialisation de mot de passe est désactivée proprement plutôt que de
+proposer une voie de contournement sans preuve d'identité (cela permettrait
+de prendre le contrôle d'un compte existant en connaissant juste son email ou
+son numéro). Un avertissement est loggé au démarrage du serveur.
+
+Frontend — à builder avec le même réglage pour que les écrans sautent
+l'étape du code et masquent « Mot de passe oublié » :
+```bash
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000 --dart-define=OTP_REQUIRED=false
+```
+
+Les deux valeurs (backend et frontend) doivent rester synchronisées pour le
+même environnement — sinon l'inscription échoue proprement (400) plutôt que
+de planter.
+
 ## Démarrage frontend (Flutter — PWA en priorité)
 
 ```bash

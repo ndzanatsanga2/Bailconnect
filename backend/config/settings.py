@@ -193,6 +193,18 @@ OTP_CODE_LENGTH = env.int("OTP_CODE_LENGTH", default=6)
 OTP_EXPIRY_MINUTES = env.int("OTP_EXPIRY_MINUTES", default=5)
 OTP_MAX_ATTEMPTS = env.int("OTP_MAX_ATTEMPTS", default=5)
 
+# OTP_REQUIRED=False désactive toute vérification de propriété email/téléphone
+# (inscription sans code, réinitialisation de mot de passe désactivée) — voir
+# users/views.py. Réservé aux environnements de test (ex. envoi OTP en panne
+# chez le fournisseur SMS/email) : ne jamais désactiver en lancement public réel.
+OTP_REQUIRED = env.bool("OTP_REQUIRED", default=True)
+if not OTP_REQUIRED:
+    print(
+        "[bailconnect] ATTENTION : OTP_REQUIRED=False — vérification de "
+        "propriété email/téléphone désactivée (inscription sans code, "
+        "réinitialisation de mot de passe indisponible). Mode test uniquement."
+    )
+
 # Email / OTP (interface abstraite — voir users/services/email.py)
 # EMAIL_PROVIDER: console (dev), smtp, ou resend (API HTTP — évite le
 # blocage/throttling SMTP sortant fréquent depuis les IP des plateformes

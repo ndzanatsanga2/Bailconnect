@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../theme/app_colors.dart';
@@ -63,6 +64,20 @@ class _RegisterAnnonceurScreenState extends State<RegisterAnnonceurScreen> {
     try {
       final phone = _phoneController.text.trim();
       final email = _emailController.text.trim();
+      if (!AppConfig.otpRequired) {
+        await _authRepository.registerAnnonceur(
+          phoneNumber: phone,
+          email: email,
+          fullName: _nameController.text.trim(),
+          whatsappNumber: _whatsappController.text.trim(),
+          annonceurType: _type,
+          password: _passwordController.text,
+          passwordConfirm: _passwordConfirmController.text,
+          code: '',
+        );
+        if (mounted) Navigator.of(context).pop(true);
+        return;
+      }
       final identifier = _otpChannel == 'email' ? email : phone;
       await _authRepository.requestOtp(identifier);
       if (!mounted) return;
@@ -184,14 +199,20 @@ class _RegisterAnnonceurScreenState extends State<RegisterAnnonceurScreen> {
                   controller: _passwordConfirmController,
                   label: 'Confirmer le mot de passe',
                 ),
-                const SizedBox(height: 16),
-                BcOtpChannelSelect(
-                  value: _otpChannel,
-                  onChanged: (v) => setState(() => _otpChannel = v),
-                ),
+                if (AppConfig.otpRequired) ...[
+                  const SizedBox(height: 16),
+                  BcOtpChannelSelect(
+                    value: _otpChannel,
+                    onChanged: (v) => setState(() => _otpChannel = v),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 BcButton(
-                  label: _loading ? 'Envoi...' : 'Recevoir le code',
+                  label: _loading
+                      ? 'Un instant...'
+                      : (AppConfig.otpRequired
+                            ? 'Recevoir le code'
+                            : 'Créer le compte'),
                   onPressed: _loading ? null : _submit,
                 ),
               ],

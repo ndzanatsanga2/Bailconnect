@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
@@ -23,6 +24,7 @@ from users.throttles import OTPRequestThrottle
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
 INVALID_CREDENTIALS_DETAIL = "Identifiant ou mot de passe incorrect."
+OTP_DISABLED_DETAIL = "Fonction indisponible (mode test, OTP_REQUIRED=false)."
 
 
 def _find_user(data) -> User | None:
@@ -47,6 +49,8 @@ class RequestOTPView(APIView):
         raise Throttled(wait=wait, detail=detail)
 
     def post(self, request):
+        if not settings.OTP_REQUIRED:
+            return Response({"detail": OTP_DISABLED_DETAIL}, status=503)
         serializer = OTPRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         identifier = serializer.identifier(serializer.validated_data)
@@ -66,9 +70,10 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        identifier = data["email"] if data["otp_channel"] == "email" else data["phone_number"]
-        if not verify_otp(identifier, data["code"]):
-            return Response({"detail": "Code invalide ou expiré."}, status=400)
+        if settings.OTP_REQUIRED:
+            identifier = data["email"] if data["otp_channel"] == "email" else data["phone_number"]
+            if not verify_otp(identifier, data["code"]):
+                return Response({"detail": "Code invalide ou expiré."}, status=400)
 
         if User.objects.filter(Q(phone_number=data["phone_number"]) | Q(email=data["email"])).exists():
             return Response({"detail": "Un compte existe déjà avec cet email ou ce numéro."}, status=400)
@@ -131,6 +136,8 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        if not settings.OTP_REQUIRED:
+            return Response({"detail": OTP_DISABLED_DETAIL}, status=503)
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

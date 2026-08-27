@@ -107,6 +107,35 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
     _load();
   }
 
+  Future<void> _delete(AdminListing listing) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Supprimer cette annonce ?'),
+        content: Text(
+          '« ${listing.title} » sera définitivement supprimée, avec ses '
+          'photos et vidéos. Cette action est irréversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(color: AppColors.danger),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _repository.deleteListing(listing.id);
+    if (mounted) _load();
+  }
+
   Future<void> _openPublish() async {
     final published = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const AdminPublishListingScreen()),
@@ -177,7 +206,7 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
               BcColumn('Quartier', flex: 2),
               BcColumn('Loyer', flex: 1, sortKey: 'rent_amount'),
               BcColumn('Statut', flex: 1),
-              BcColumn('Actions', flex: 2),
+              BcColumn('Actions', flex: 3),
             ],
             rows: _result.items,
             page: _page,
@@ -199,27 +228,34 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
                   background: bg,
                   foreground: fg,
                 ),
-                listing.status == 'en_attente'
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          BcButton(
-                            label: 'Valider',
-                            icon: 'check',
-                            expand: false,
-                            onPressed: () => _decide(listing.id, true),
-                          ),
-                          const SizedBox(width: 8),
-                          BcButton(
-                            label: 'Rejeter',
-                            icon: 'close',
-                            expand: false,
-                            variant: BcButtonVariant.ghost,
-                            onPressed: () => _decide(listing.id, false),
-                          ),
-                        ],
-                      )
-                    : const Text('—', style: TextStyle(color: AppColors.sub)),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (listing.status == 'en_attente') ...[
+                      BcButton(
+                        label: 'Valider',
+                        icon: 'check',
+                        expand: false,
+                        onPressed: () => _decide(listing.id, true),
+                      ),
+                      BcButton(
+                        label: 'Rejeter',
+                        icon: 'close',
+                        expand: false,
+                        variant: BcButtonVariant.ghost,
+                        onPressed: () => _decide(listing.id, false),
+                      ),
+                    ],
+                    BcButton(
+                      label: 'Supprimer',
+                      icon: 'close',
+                      expand: false,
+                      variant: BcButtonVariant.ghost,
+                      onPressed: () => _delete(listing),
+                    ),
+                  ],
+                ),
               ];
             },
           ),

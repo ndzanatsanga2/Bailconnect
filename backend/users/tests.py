@@ -461,6 +461,60 @@ class TestPasswordReset:
         assert response.status_code == 400
 
 
+class TestOTPOptionalMode:
+    """OTP_REQUIRED=False — envoi de code indisponible côté fournisseur
+    (voir settings.py) : inscription sans code, otp/request et
+    password/reset désactivés proprement plutôt que de planter."""
+
+    def test_register_client_succeeds_without_code_when_otp_not_required(self, settings):
+        settings.OTP_REQUIRED = False
+        client = APIClient()
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000500", "email": "nootp-client@example.com",
+            "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 201
+        assert response.data["token"]
+        assert User.objects.filter(phone_number="+237600000500").exists()
+
+    def test_register_annonceur_succeeds_without_code_when_otp_not_required(self, settings):
+        settings.OTP_REQUIRED = False
+        client = APIClient()
+        response = client.post("/api/auth/register/", {
+            "role": "annonceur", "phone_number": "+237600000501", "email": "nootp-annonceur@example.com",
+            "full_name": "X", "whatsapp_number": "+237600000502", "annonceur_type": "bailleur",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 201
+        assert response.data["user"]["is_annonceur"] is True
+
+    def test_otp_request_returns_503_when_otp_not_required(self, settings):
+        settings.OTP_REQUIRED = False
+        client = APIClient()
+        response = client.post("/api/auth/otp/request/", {"phone_number": "+237600000503"})
+        assert response.status_code == 503
+
+    def test_password_reset_confirm_returns_503_when_otp_not_required(self, settings):
+        settings.OTP_REQUIRED = False
+        client = APIClient()
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "whoever@example.com", "code": "111111",
+            "new_password": VALID_PASSWORD, "new_password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 503
+
+    def test_register_still_requires_valid_code_by_default(self):
+        """Régression : OTP_REQUIRED=True (défaut) garde le comportement actuel."""
+        client = APIClient()
+        response = client.post("/api/auth/register/", {
+            "role": "locataire", "phone_number": "+237600000504", "email": "still-required@example.com",
+            "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        })
+        assert response.status_code == 400
+
+
 class TestBecomeAnnonceur:
     def test_locataire_can_add_annonceur_capacity(self):
         client = APIClient()

@@ -70,7 +70,9 @@ class RegisterSerializer(PasswordFieldsMixin):
     role = serializers.ChoiceField(choices=[User.Role.LOCATAIRE, User.Role.ANNONCEUR])
     phone_number = serializers.CharField()
     email = serializers.EmailField()
-    code = serializers.CharField()
+    # Requis seulement si settings.OTP_REQUIRED (vérifié dans RegisterView) —
+    # non requis ici pour permettre l'inscription sans code en mode test.
+    code = serializers.CharField(required=False, allow_blank=True, default="")
     otp_channel = serializers.ChoiceField(choices=["sms", "email"], default="sms")
     full_name = serializers.CharField(allow_blank=False)
     password = serializers.CharField(write_only=True)

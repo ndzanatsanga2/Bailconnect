@@ -105,6 +105,16 @@ class AdminListingViewSet(viewsets.ModelViewSet):
         listing.save(update_fields=["status"])
         return Response(AdminListingSerializer(listing).data)
 
+    def destroy(self, request, *args, **kwargs):
+        listing = self.get_object()
+        # Le FileField ne supprime pas son fichier de stockage (local ou
+        # S3/R2) tout seul à la suppression du modèle — sans ceci, les
+        # médias restent orphelins sur le bucket après suppression de l'annonce.
+        for media in listing.media.all():
+            media.file.delete(save=False)
+        self.perform_destroy(listing)
+        return Response(status=204)
+
 
 class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserSerializer

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../theme/app_colors.dart';
@@ -138,8 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         label: 'Mot de passe',
                       ),
                       const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        runSpacing: 4,
                         children: [
                           InkWell(
                             onTap: () =>
@@ -171,17 +174,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: _openForgotPassword,
-                            child: const Text(
-                              'Mot de passe oublié ?',
-                              style: TextStyle(
-                                color: AppColors.greenDark,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
+                          // Masqué en mode test (OTP_REQUIRED=false) : la
+                          // réinitialisation dépend d'un code envoyé par
+                          // SMS/email, indisponible dans ce mode (voir README).
+                          if (AppConfig.otpRequired)
+                            TextButton(
+                              onPressed: _openForgotPassword,
+                              child: const Text(
+                                'Mot de passe oublié ?',
+                                style: TextStyle(
+                                  color: AppColors.greenDark,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12.5,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
