@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/breakpoints.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_card.dart';
 import '../../widgets/bc_chip.dart';
@@ -57,7 +58,7 @@ class _ProfileTabState extends State<ProfileTab> {
     if (result != true) return;
     final user = await _authRepository.me();
     if (!mounted) return;
-    await routeAfterAuth(context, user);
+    await routeAfterAuth(context, user, isMobileBuild: isMobileLayout(context));
     _refresh();
   }
 

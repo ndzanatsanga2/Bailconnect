@@ -21,14 +21,20 @@ const kClientWebBlockedMessage =
 ///   courant en mobile (déjà le fil client) ; sur le web, aucun espace
 ///   client n'existe : la session est déconnectée avec un message clair.
 ///
-/// Sur build mobile natif ([kIsMobileApp]), un compte admin est refusé : le
-/// back-office n'existe que pour le web, jamais pour l'app mobile — la
-/// session est immédiatement déconnectée plutôt que de laisser le compte
-/// connecté sans espace accessible. Symétriquement, sur le web, un client
-/// pur est déconnecté plutôt que laissé sur une page de connexion sans suite.
+/// En contexte mobile ([isMobileBuild], vrai pour le build natif comme pour
+/// le web étroit — PWA sur téléphone, voir [isMobileLayout]), un compte
+/// admin est refusé : le back-office n'existe que pour le web large, jamais
+/// pour l'app mobile — la session est immédiatement déconnectée plutôt que
+/// de laisser le compte connecté sans espace accessible. Symétriquement,
+/// hors contexte mobile, un client pur est déconnecté plutôt que laissé sur
+/// une page de connexion sans suite.
 ///
-/// [authRepository] et [isMobileBuild] ne sont overridables que pour les
-/// tests ; en usage normal les valeurs par défaut s'appliquent toujours.
+/// [isMobileBuild] vaut [kIsMobileApp] par défaut (signal de plateforme pur,
+/// sans notion de largeur) ; tout appelant disposant d'un [BuildContext]
+/// utilisable doit passer explicitement `isMobileLayout(context)` pour
+/// couvrir le cas PWA — c'est ce que font tous les appels réels de l'app, le
+/// défaut ne servant qu'aux tests. [authRepository] n'est overridable que
+/// pour les tests.
 Future<void> routeAfterAuth(
   BuildContext context,
   AuthUser? user, {

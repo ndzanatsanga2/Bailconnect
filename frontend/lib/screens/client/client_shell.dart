@@ -4,6 +4,7 @@ import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../data/feed_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/breakpoints.dart';
 import '../../widgets/bc_bottom_nav.dart';
 import '../../widgets/bc_mobile_frame.dart';
 import '../auth/post_login_routing.dart';
@@ -38,7 +39,7 @@ class _ClientShellState extends State<ClientShell> {
   Future<void> _autoRoute() async {
     final user = await AuthRepository(ApiClient()).me();
     if (!mounted) return;
-    await routeAfterAuth(context, user);
+    await routeAfterAuth(context, user, isMobileBuild: isMobileLayout(context));
   }
 
   void _applySearch(FeedFilters filters) {

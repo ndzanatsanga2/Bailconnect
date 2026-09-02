@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/breakpoints.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
 import '../../widgets/bc_logo.dart';
@@ -46,7 +47,12 @@ class _WebLoginScreenState extends State<WebLoginScreen> {
         rememberMe: true,
       );
       if (!mounted) return;
-      await routeAfterAuth(context, user, authRepository: _authRepository);
+      await routeAfterAuth(
+        context,
+        user,
+        authRepository: _authRepository,
+        isMobileBuild: isMobileLayout(context),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

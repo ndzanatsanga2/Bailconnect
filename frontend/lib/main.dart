@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
@@ -7,6 +6,7 @@ import 'screens/client/client_shell.dart';
 import 'screens/web/web_landing_screen.dart';
 import 'screens/web/web_login_screen.dart';
 import 'theme/app_theme.dart';
+import 'theme/breakpoints.dart';
 
 void main() {
   usePathUrlStrategy();
@@ -23,17 +23,34 @@ class BailconnectApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       initialRoute: '/',
-      // Séparation stricte des accès : le web est le back-office (landing +
-      // connexion, jamais l'espace client) ; l'app mobile native est
-      // l'espace client (fil, recherche, favoris — jamais le back-office).
+      // Séparation stricte des accès : le web large (desktop) est le
+      // back-office (landing + connexion, jamais l'espace client) ; l'app
+      // mobile native ET le web étroit (PWA installée sur téléphone, voir
+      // [isMobileLayout]) sont l'espace client (fil, recherche, favoris —
+      // jamais le back-office).
       // Le back-office admin a sa propre route dédiée (kAdminRoute) — jamais
       // atteint via un bouton dans l'espace bailleur, uniquement par cette
       // URL directe ou le routage automatique au rôle à la connexion.
       routes: {
-        '/': (context) => kIsWeb ? const WebLandingScreen() : const ClientShell(),
+        '/': (context) => const _HomeGate(),
         kAdminRoute: (context) => const AdminShell(),
         kAdminLoginRoute: (context) => const WebLoginScreen(),
       },
     );
+  }
+}
+
+/// Bascule entre l'espace client et la landing web selon [isMobileLayout] —
+/// réactive : un redimensionnement de fenêtre (ou changement d'orientation)
+/// reconstruit ce widget via [MediaQuery] et peut donc faire basculer l'app
+/// d'un espace à l'autre en direct.
+class _HomeGate extends StatelessWidget {
+  const _HomeGate();
+
+  @override
+  Widget build(BuildContext context) {
+    return isMobileLayout(context)
+        ? const ClientShell()
+        : const WebLandingScreen();
   }
 }
