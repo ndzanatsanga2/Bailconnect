@@ -105,6 +105,13 @@ class AdminListingViewSet(viewsets.ModelViewSet):
         listing.save(update_fields=["status"])
         return Response(AdminListingSerializer(listing).data)
 
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        listing = self.get_object()
+        listing.status = Listing.Status.ARCHIVEE
+        listing.save(update_fields=["status"])
+        return Response(AdminListingSerializer(listing).data)
+
     def destroy(self, request, *args, **kwargs):
         listing = self.get_object()
         # Le FileField ne supprime pas son fichier de stockage (local ou

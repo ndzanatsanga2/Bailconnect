@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from invitations.models import Invitation
 from listings.models import Amenity, Listing
+from listings.serializers import ListingMediaSerializer
 from reports.models import Report
 
 
@@ -13,17 +14,18 @@ class AdminListingSerializer(serializers.ModelSerializer):
         source="amenities", queryset=Amenity.objects.all(), many=True, write_only=True, required=False
     )
     owner_display = serializers.SerializerMethodField()
+    media = ListingMediaSerializer(many=True, read_only=True)
 
     class Meta:
         model = Listing
         fields = [
             "id", "owner", "owner_display", "title", "description", "neighborhood", "property_type",
             "rent_amount", "deposit_amount", "terms", "whatsapp_number",
-            "amenities", "amenity_ids", "status", "source", "verified",
+            "amenities", "amenity_ids", "media", "status", "source", "verified",
             "seed_contact_name", "seed_contact_phone",
             "last_confirmed_at", "expires_at", "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "owner", "amenities", "created_at", "updated_at"]
+        read_only_fields = ["id", "owner", "amenities", "media", "created_at", "updated_at"]
 
     def get_owner_display(self, obj) -> str:
         if obj.owner:

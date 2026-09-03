@@ -7,6 +7,7 @@ import '../../widgets/bc_badge.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_chip.dart';
 import '../../widgets/bc_data_table.dart';
+import 'admin_listing_detail_screen.dart';
 import 'admin_publish_listing_screen.dart';
 
 const _statusFilters = [
@@ -16,6 +17,7 @@ const _statusFilters = [
   ('rejetee', 'Rejetées'),
   ('louee', 'Louées'),
   ('expiree', 'Expirées'),
+  ('archivee', 'Archivées'),
 ];
 
 const _statusLabels = {
@@ -24,6 +26,7 @@ const _statusLabels = {
   'rejetee': 'Rejetée',
   'louee': 'Louée',
   'expiree': 'Expirée',
+  'archivee': 'Archivée',
 };
 
 (Color, Color) _statusColors(String status) => switch (status) {
@@ -105,6 +108,20 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
       await _repository.rejectListing(id);
     }
     _load();
+  }
+
+  Future<void> _archive(int id) async {
+    await _repository.archiveListing(id);
+    _load();
+  }
+
+  Future<void> _openDetail(int id) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AdminListingDetailScreen(listingId: id),
+      ),
+    );
+    if (changed == true) _load();
   }
 
   Future<void> _delete(AdminListing listing) async {
@@ -219,7 +236,19 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
             cellsBuilder: (listing) {
               final (bg, fg) = _statusColors(listing.status);
               return [
-                Text(listing.title, overflow: TextOverflow.ellipsis),
+                InkWell(
+                  onTap: () => _openDetail(listing.id),
+                  child: Text(
+                    listing.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.greenDark,
+                      fontWeight: FontWeight.w700,
+                      decoration: TextDecoration.underline,
+                      decorationColor: AppColors.line,
+                    ),
+                  ),
+                ),
                 Text(listing.ownerDisplay, overflow: TextOverflow.ellipsis),
                 Text(listing.neighborhood, overflow: TextOverflow.ellipsis),
                 Text('${listing.rentAmount} F'),
@@ -247,6 +276,14 @@ class _AdminListingsTabState extends State<AdminListingsTab> {
                         onPressed: () => _decide(listing.id, false),
                       ),
                     ],
+                    if (listing.status != 'archivee')
+                      BcButton(
+                        label: 'Archiver',
+                        icon: 'bookmark',
+                        expand: false,
+                        variant: BcButtonVariant.ghost,
+                        onPressed: () => _archive(listing.id),
+                      ),
                     BcButton(
                       label: 'Supprimer',
                       icon: 'close',

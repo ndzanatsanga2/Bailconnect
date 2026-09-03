@@ -1,5 +1,6 @@
 import 'api_client.dart';
 import 'feed_repository.dart' show AmenityItem;
+import 'listing_repository.dart' show ListingMediaItem;
 
 class AdminTrendPoint {
   final String date;
@@ -82,6 +83,71 @@ class AdminListing {
     verified: json['verified'] as bool,
     ownerDisplay: json['owner_display'] as String,
   );
+}
+
+/// Vue détail complète d'une annonce côté admin (GET /api/admin/listings/{id}/) —
+/// plus riche que [AdminListing], qui ne porte que les colonnes du tableau.
+class AdminListingDetail {
+  final int id;
+  final String title;
+  final String description;
+  final String neighborhood;
+  final String propertyType;
+  final int rentAmount;
+  final int depositAmount;
+  final String terms;
+  final String whatsappNumber;
+  final String status;
+  final String source;
+  final bool verified;
+  final String ownerDisplay;
+  final String seedContactName;
+  final String seedContactPhone;
+  final String createdAt;
+  final List<ListingMediaItem> media;
+
+  AdminListingDetail({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.neighborhood,
+    required this.propertyType,
+    required this.rentAmount,
+    required this.depositAmount,
+    required this.terms,
+    required this.whatsappNumber,
+    required this.status,
+    required this.source,
+    required this.verified,
+    required this.ownerDisplay,
+    required this.seedContactName,
+    required this.seedContactPhone,
+    required this.createdAt,
+    required this.media,
+  });
+
+  factory AdminListingDetail.fromJson(Map<String, dynamic> json) =>
+      AdminListingDetail(
+        id: json['id'] as int,
+        title: json['title'] as String,
+        description: json['description'] as String? ?? '',
+        neighborhood: json['neighborhood'] as String,
+        propertyType: json['property_type'] as String,
+        rentAmount: json['rent_amount'] as int,
+        depositAmount: json['deposit_amount'] as int,
+        terms: json['terms'] as String? ?? '',
+        whatsappNumber: json['whatsapp_number'] as String,
+        status: json['status'] as String,
+        source: json['source'] as String,
+        verified: json['verified'] as bool,
+        ownerDisplay: json['owner_display'] as String,
+        seedContactName: json['seed_contact_name'] as String? ?? '',
+        seedContactPhone: json['seed_contact_phone'] as String? ?? '',
+        createdAt: json['created_at'] as String,
+        media: (json['media'] as List)
+            .map((e) => ListingMediaItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
 }
 
 class AdminUser {
@@ -217,8 +283,15 @@ class AdminRepository {
       _api.post('/api/admin/listings/$id/approve/', {});
   Future<void> rejectListing(int id) =>
       _api.post('/api/admin/listings/$id/reject/', {});
+  Future<void> archiveListing(int id) =>
+      _api.post('/api/admin/listings/$id/archive/', {});
   Future<void> deleteListing(int id) =>
       _api.delete('/api/admin/listings/$id/');
+
+  Future<AdminListingDetail> getListing(int id) async {
+    final data = await _api.get('/api/admin/listings/$id/');
+    return AdminListingDetail.fromJson(data as Map<String, dynamic>);
+  }
 
   Future<List<AmenityItem>> amenities() async {
     final data = await _api.get('/api/amenities/') as List;

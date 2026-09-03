@@ -93,6 +93,26 @@ class TestAdminListingModeration:
         listing.refresh_from_db()
         assert listing.status == Listing.Status.REJETEE
 
+    def test_admin_can_archive_listing(self):
+        listing = make_listing(owner=make_annonceur("+237600000916b"), status=Listing.Status.PUBLIEE)
+        client = APIClient()
+        client.force_authenticate(make_admin("+237600000916c"))
+
+        response = client.post(f"/api/admin/listings/{listing.id}/archive/")
+
+        assert response.status_code == 200
+        listing.refresh_from_db()
+        assert listing.status == Listing.Status.ARCHIVEE
+
+    def test_annonceur_cannot_archive_listing(self):
+        listing = make_listing(owner=make_annonceur("+237600000916d"))
+        client = APIClient()
+        client.force_authenticate(make_annonceur("+237600000916e"))
+
+        response = client.post(f"/api/admin/listings/{listing.id}/archive/")
+
+        assert response.status_code == 403
+
     def test_annonceur_cannot_approve_listing(self):
         listing = make_listing(owner=make_annonceur("+237600000917"))
         client = APIClient()

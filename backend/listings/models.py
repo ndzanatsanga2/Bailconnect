@@ -27,6 +27,7 @@ class Listing(models.Model):
         REJETEE = "rejetee", "Rejetée"
         LOUEE = "louee", "Louée"
         EXPIREE = "expiree", "Expirée"
+        ARCHIVEE = "archivee", "Archivée"
 
     class Source(models.TextChoices):
         ANNONCEUR = "annonceur", "Annonceur"
