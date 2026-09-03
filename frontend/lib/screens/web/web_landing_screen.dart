@@ -39,8 +39,12 @@ class WebLandingScreen extends StatefulWidget {
   State<WebLandingScreen> createState() => _WebLandingScreenState();
 }
 
+const kClientMobileOnlyMessage =
+    "L'espace locataire se trouve sur l'application mobile Bailconnect — recherchez et contactez des annonceurs depuis votre téléphone.";
+
 class _WebLandingScreenState extends State<WebLandingScreen> {
   final _authRepository = AuthRepository(ApiClient());
+  bool _showClientNotice = false;
 
   @override
   void initState() {
@@ -85,6 +89,8 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
                     _topBar(),
                     const SizedBox(height: 56),
                     _hero(context),
+                    const SizedBox(height: 56),
+                    _roleChoice(context),
                     const SizedBox(height: 64),
                     _featureGrid(context),
                     const SizedBox(height: 40),
@@ -163,6 +169,143 @@ class _WebLandingScreenState extends State<WebLandingScreen> {
           onPressed: _openLogin,
         ),
       ],
+    );
+  }
+
+  void _selectRole(String role) {
+    if (role == 'client') {
+      setState(() => _showClientNotice = true);
+      return;
+    }
+    setState(() => _showClientNotice = false);
+    _openLogin();
+  }
+
+  Widget _roleChoice(BuildContext context) {
+    final narrow = MediaQuery.of(context).size.width < 760;
+    const roles = [
+      ('client', 'home', 'Locataire', 'Cherchez un logement et échangez avec des annonceurs.'),
+      ('bailleur', 'grid', 'Bailleur', 'Publiez vos biens et suivez vos demandes.'),
+      ('admin', 'settings', 'Administrateur', 'Modérez les annonces et gérez la plateforme.'),
+    ];
+    final cards = [for (final r in roles) _roleCard(r)];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Text(
+          'Vous êtes...',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: AppColors.sub,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 16),
+        narrow
+            ? Column(
+                children: [
+                  for (final card in cards) ...[
+                    card,
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < cards.length; i++) ...[
+                    Expanded(child: cards[i]),
+                    if (i != cards.length - 1) const SizedBox(width: 16),
+                  ],
+                ],
+              ),
+        if (_showClientNotice) ...[
+          const SizedBox(height: 16),
+          _clientNoticePanel(),
+        ],
+      ],
+    );
+  }
+
+  Widget _roleCard((String, String, String, String) role) {
+    final (id, icon, title, description) = role;
+    final active = id == 'client' && _showClientNotice;
+    return InkWell(
+      onTap: () => _selectRole(id),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.paper,
+          border: Border.all(
+            color: active ? AppColors.amber : AppColors.line,
+            width: active ? 1.5 : 1,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: AppColors.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.greenLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: BcIcon(icon, size: 18, color: AppColors.greenDark),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.sub,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _clientNoticePanel() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          const BcIcon('phone', size: 18, color: AppColors.amber),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              kClientMobileOnlyMessage,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.ink,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
