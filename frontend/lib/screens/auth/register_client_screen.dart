@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
 import '../../data/neighborhoods.dart';
+import '../../data/remote_config.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
@@ -58,7 +58,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     try {
       final phone = _phoneController.text.trim();
       final email = _emailController.text.trim();
-      if (!AppConfig.otpRequired) {
+      if (!RemoteConfig.otpRequired) {
         await _authRepository.registerClient(
           phoneNumber: phone,
           email: email,
@@ -164,7 +164,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   controller: _passwordConfirmController,
                   label: 'Confirmer le mot de passe',
                 ),
-                if (AppConfig.otpRequired) ...[
+                if (RemoteConfig.otpRequired) ...[
                   const SizedBox(height: 16),
                   BcOtpChannelSelect(
                     value: _otpChannel,
@@ -175,7 +175,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 BcButton(
                   label: _loading
                       ? 'Un instant...'
-                      : (AppConfig.otpRequired
+                      : (RemoteConfig.otpRequired
                             ? 'Recevoir le code'
                             : 'Créer le compte'),
                   onPressed: _loading ? null : _submit,

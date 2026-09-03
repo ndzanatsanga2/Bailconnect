@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../app_config.dart';
 import '../../data/api_client.dart';
 import '../../data/auth_repository.dart';
+import '../../data/remote_config.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Masqué en mode test (OTP_REQUIRED=false) : la
                           // réinitialisation dépend d'un code envoyé par
                           // SMS/email, indisponible dans ce mode (voir README).
-                          if (AppConfig.otpRequired)
+                          if (RemoteConfig.otpRequired)
                             TextButton(
                               onPressed: _openForgotPassword,
                               child: const Text(

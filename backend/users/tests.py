@@ -152,6 +152,21 @@ class TestOTPRequestEndpoint:
         assert response.status_code == 401
 
 
+class TestConfigEndpoint:
+    def test_returns_otp_required_flag(self, settings):
+        settings.OTP_REQUIRED = True
+        client = APIClient()
+        response = client.get("/api/config/")
+        assert response.status_code == 200
+        assert response.json() == {"otp_required": True}
+
+    def test_reflects_otp_required_false(self, settings):
+        settings.OTP_REQUIRED = False
+        client = APIClient()
+        response = client.get("/api/config/")
+        assert response.json() == {"otp_required": False}
+
+
 class TestOTPRequestThrottle:
     def setup_method(self):
         cache.clear()

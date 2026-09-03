@@ -82,15 +82,11 @@ proposer une voie de contournement sans preuve d'identité (cela permettrait
 de prendre le contrôle d'un compte existant en connaissant juste son email ou
 son numéro). Un avertissement est loggé au démarrage du serveur.
 
-Frontend — à builder avec le même réglage pour que les écrans sautent
-l'étape du code et masquent « Mot de passe oublié » :
-```bash
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000 --dart-define=OTP_REQUIRED=false
-```
-
-Les deux valeurs (backend et frontend) doivent rester synchronisées pour le
-même environnement — sinon l'inscription échoue proprement (400) plutôt que
-de planter.
+Frontend : rien à builder différemment — au démarrage, l'app lit
+`GET /api/config/` (`{"otp_required": bool}`) et adapte automatiquement les
+écrans d'inscription et « Mot de passe oublié » au réglage du backend ciblé
+par `API_BASE_URL`. Le flag `--dart-define=OTP_REQUIRED=...` ne sert plus que
+de valeur de repli si ce backend est injoignable au lancement.
 
 ## Démarrage frontend (Flutter — PWA en priorité)
 

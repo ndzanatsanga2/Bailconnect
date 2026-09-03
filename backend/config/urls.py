@@ -10,6 +10,10 @@ admin.site.index_title = "Debug interne — le back-office produit est dans l'ap
 
 urlpatterns = [
     path("", lambda request: JsonResponse({"service": "bailconnect-api"})),
+    path(
+        "api/config/",
+        lambda request: JsonResponse({"otp_required": settings.OTP_REQUIRED}),
+    ),
     path("api/auth/", include("users.urls")),
     path("api/", include("listings.urls")),
     path("api/invitations/", include("invitations.urls")),

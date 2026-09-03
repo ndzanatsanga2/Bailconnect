@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
+import 'data/remote_config.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/client/client_shell.dart';
 import 'screens/web/web_landing_screen.dart';
@@ -8,8 +9,9 @@ import 'screens/web/web_login_screen.dart';
 import 'theme/app_theme.dart';
 import 'theme/breakpoints.dart';
 
-void main() {
+Future<void> main() async {
   usePathUrlStrategy();
+  await RemoteConfig.load();
   runApp(const BailconnectApp());
 }
 
