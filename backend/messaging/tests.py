@@ -207,3 +207,65 @@ class TestUnreadAndMarkRead:
 
         response = client.post(f"/api/messaging/conversations/{conversation.id}/mark-read/")
         assert response.status_code == 404
+
+
+class TestAppointmentConfirmation:
+    def test_annonceur_confirming_reveals_phone_to_client_and_posts_message(self):
+        annonceur = make_annonceur("+237600000710")
+        listing = make_listing(owner=annonceur)
+        tenant = make_locataire("+237600000711")
+        conversation = Conversation.objects.create(listing=listing, client=tenant, annonceur=annonceur)
+
+        annonceur_client = APIClient()
+        annonceur_client.force_authenticate(annonceur)
+        response = annonceur_client.post(f"/api/messaging/conversations/{conversation.id}/confirm-appointment/")
+
+        assert response.status_code == 200
+        assert response.data["appointment_confirmed"] is True
+        assert conversation.messages.filter(text__icontains="Rendez-vous confirmé").exists()
+
+        tenant_client = APIClient()
+        tenant_client.force_authenticate(tenant)
+        tenant_view = tenant_client.get("/api/messaging/conversations/").data[0]
+        assert tenant_view["contact_phone"] == "+237600000710"
+
+    def test_phone_hidden_before_confirmation(self):
+        annonceur = make_annonceur("+237600000712")
+        listing = make_listing(owner=annonceur)
+        tenant = make_locataire("+237600000713")
+        conversation = Conversation.objects.create(listing=listing, client=tenant, annonceur=annonceur)
+
+        tenant_client = APIClient()
+        tenant_client.force_authenticate(tenant)
+        tenant_view = tenant_client.get("/api/messaging/conversations/").data[0]
+
+        assert tenant_view["contact_phone"] is None
+
+    def test_phone_not_revealed_to_annonceur_itself(self):
+        annonceur = make_annonceur("+237600000714")
+        listing = make_listing(owner=annonceur)
+        tenant = make_locataire("+237600000715")
+        conversation = Conversation.objects.create(
+            listing=listing, client=tenant, annonceur=annonceur,
+            appointment_confirmed=True,
+        )
+
+        annonceur_client = APIClient()
+        annonceur_client.force_authenticate(annonceur)
+        annonceur_view = annonceur_client.get("/api/messaging/conversations/").data[0]
+
+        assert annonceur_view["contact_phone"] is None
+
+    def test_client_cannot_confirm_appointment(self):
+        annonceur = make_annonceur("+237600000716")
+        listing = make_listing(owner=annonceur)
+        tenant = make_locataire("+237600000717")
+        conversation = Conversation.objects.create(listing=listing, client=tenant, annonceur=annonceur)
+
+        tenant_client = APIClient()
+        tenant_client.force_authenticate(tenant)
+        response = tenant_client.post(f"/api/messaging/conversations/{conversation.id}/confirm-appointment/")
+
+        assert response.status_code == 403
+        conversation.refresh_from_db()
+        assert conversation.appointment_confirmed is False

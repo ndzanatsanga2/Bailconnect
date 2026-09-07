@@ -18,6 +18,14 @@ class Conversation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Rendez-vous convenu par messagerie (section E) : l'annonceur confirme
+    # depuis la conversation elle-même (pas de champ date/heure structuré —
+    # elle se convient en texte libre dans les messages), ce qui déclenche
+    # côté client l'affichage du numéro de l'annonceur (voir
+    # ConversationSerializer.get_contact_phone).
+    appointment_confirmed = models.BooleanField(default=False)
+    appointment_confirmed_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["listing", "client", "annonceur"], name="unique_conversation_per_listing_pair"),

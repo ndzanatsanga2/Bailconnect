@@ -13,12 +13,14 @@ class ConversationSerializer(serializers.ModelSerializer):
     peer_name = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    contact_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
         fields = [
             "id", "listing_id", "listing_title", "peer_id", "peer_name",
             "last_message", "unread_count", "updated_at",
+            "appointment_confirmed", "contact_phone",
         ]
         read_only_fields = fields
 
@@ -44,6 +46,16 @@ class ConversationSerializer(serializers.ModelSerializer):
         if user is None:
             return 0
         return obj.messages.filter(is_read=False).exclude(author=user).count()
+
+    def get_contact_phone(self, obj) -> str | None:
+        # Numéro de l'annonceur, révélé côté client uniquement une fois le
+        # rendez-vous confirmé (jamais à l'annonceur, qui connaît déjà son
+        # propre numéro, ni au client avant confirmation).
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not obj.appointment_confirmed or user is None or user.id != obj.client_id:
+            return None
+        return obj.annonceur.phone_number or None
 
 
 class MessageSerializer(serializers.ModelSerializer):

@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -68,3 +69,19 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = self.get_object()
         conversation.messages.exclude(author=request.user).update(is_read=True)
         return Response({"detail": "ok"})
+
+    @action(detail=True, methods=["post"], url_path="confirm-appointment")
+    def confirm_appointment(self, request, pk=None):
+        """L'annonceur confirme le rendez-vous convenu dans la conversation :
+        révèle son numéro au client (ConversationSerializer.get_contact_phone)
+        et poste un message de confirmation, seul mécanisme de notification —
+        le client le voit apparaître dans sa messagerie comme n'importe quel
+        autre message (badge non-lu existant, pas de canal supplémentaire)."""
+        conversation = self.get_object()
+        if request.user.id != conversation.annonceur_id:
+            return Response({"detail": "Seul l'annonceur peut confirmer un rendez-vous."}, status=403)
+        conversation.appointment_confirmed = True
+        conversation.appointment_confirmed_at = timezone.now()
+        conversation.save(update_fields=["appointment_confirmed", "appointment_confirmed_at", "updated_at"])
+        conversation.messages.create(author=request.user, text="Rendez-vous confirmé par l'annonceur.")
+        return Response(self.get_serializer(conversation).data)

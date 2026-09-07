@@ -31,6 +31,7 @@ class ChatScreen extends StatelessWidget {
             peerName: peerName,
             listingTitle: listingTitle,
             onBack: () => Navigator.of(context).pop(),
+            isAnnonceur: false,
           ),
         ),
       ),

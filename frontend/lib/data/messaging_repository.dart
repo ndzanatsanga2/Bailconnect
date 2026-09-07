@@ -9,6 +9,8 @@ class ConversationSummary {
   final String? lastMessage;
   final int unreadCount;
   final String updatedAt;
+  final bool appointmentConfirmed;
+  final String? contactPhone;
 
   ConversationSummary({
     required this.id,
@@ -19,6 +21,8 @@ class ConversationSummary {
     required this.lastMessage,
     required this.unreadCount,
     required this.updatedAt,
+    required this.appointmentConfirmed,
+    required this.contactPhone,
   });
 
   factory ConversationSummary.fromJson(Map<String, dynamic> json) =>
@@ -31,6 +35,8 @@ class ConversationSummary {
         lastMessage: json['last_message'] as String?,
         unreadCount: json['unread_count'] as int,
         updatedAt: json['updated_at'] as String,
+        appointmentConfirmed: json['appointment_confirmed'] as bool,
+        contactPhone: json['contact_phone'] as String?,
       );
 }
 
@@ -77,6 +83,11 @@ class MessagingRepository {
         .toList();
   }
 
+  Future<ConversationSummary> getConversation(int id) async {
+    final data = await _api.get('/api/messaging/conversations/$id/');
+    return ConversationSummary.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<ConversationSummary> openConversation({
     required int listingId,
     int? peerId,
@@ -110,5 +121,13 @@ class MessagingRepository {
       '/api/messaging/conversations/$conversationId/mark-read/',
       {},
     );
+  }
+
+  Future<ConversationSummary> confirmAppointment(int conversationId) async {
+    final data = await _api.post(
+      '/api/messaging/conversations/$conversationId/confirm-appointment/',
+      {},
+    );
+    return ConversationSummary.fromJson(data as Map<String, dynamic>);
   }
 }

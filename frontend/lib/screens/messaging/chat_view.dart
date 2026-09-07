@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/api_client.dart';
 import '../../data/messaging_repository.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/bc_button.dart';
 import '../../widgets/bc_icon.dart';
 
 const _pollInterval = Duration(seconds: 3);
@@ -22,12 +24,18 @@ class ChatView extends StatefulWidget {
   /// l'écran est intégré, sans route à dépiler).
   final VoidCallback? onBack;
 
+  /// Pilote l'affichage du bandeau rendez-vous (section E) : l'annonceur
+  /// voit un bouton pour confirmer, le client voit le numéro une fois
+  /// confirmé — jamais les deux à la fois dans la même conversation.
+  final bool isAnnonceur;
+
   const ChatView({
     super.key,
     required this.conversationId,
     required this.peerName,
     required this.listingTitle,
     this.onBack,
+    required this.isAnnonceur,
   });
 
   @override
@@ -40,8 +48,10 @@ class _ChatViewState extends State<ChatView> {
   final _scrollController = ScrollController();
   Timer? _pollTimer;
   List<ChatMessage> _messages = [];
+  ConversationSummary? _conversation;
   bool _loading = true;
   bool _sending = false;
+  bool _confirming = false;
 
   @override
   void initState() {
@@ -70,10 +80,14 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _load({bool initial = false}) async {
     try {
       final messages = await _repository.messages(widget.conversationId);
+      final conversation = await _repository.getConversation(
+        widget.conversationId,
+      );
       if (!mounted) return;
       final grew = messages.length > _messages.length;
       setState(() {
         _messages = messages;
+        _conversation = conversation;
         _loading = false;
       });
       if (initial || grew) {
@@ -82,6 +96,18 @@ class _ChatViewState extends State<ChatView> {
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _confirmAppointment() async {
+    setState(() => _confirming = true);
+    try {
+      final conversation = await _repository.confirmAppointment(
+        widget.conversationId,
+      );
+      if (mounted) setState(() => _conversation = conversation);
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
   }
 
@@ -162,6 +188,7 @@ class _ChatViewState extends State<ChatView> {
             ],
           ),
         ),
+        if (_appointmentBanner() != null) _appointmentBanner()!,
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -231,6 +258,69 @@ class _ChatViewState extends State<ChatView> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Bandeau rendez-vous (section E) : côté annonceur, une invite à
+  /// confirmer tant que ce n'est pas fait ; côté client, le numéro de
+  /// l'annonceur une fois la confirmation reçue. Jamais les deux à la fois,
+  /// et rien tant que la conversation n'est pas encore chargée.
+  Widget? _appointmentBanner() {
+    final conversation = _conversation;
+    if (conversation == null) return null;
+    if (widget.isAnnonceur) {
+      if (conversation.appointmentConfirmed) return null;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: AppColors.greenLight,
+        child: Row(
+          children: [
+            const BcIcon('check', size: 16, color: AppColors.greenDark),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Vous êtes convenus d\'un rendez-vous ?',
+                style: TextStyle(fontSize: 12.5, color: AppColors.greenDark),
+              ),
+            ),
+            BcButton(
+              label: _confirming ? 'Un instant…' : 'Confirmer le rendez-vous',
+              expand: false,
+              onPressed: _confirming ? null : _confirmAppointment,
+            ),
+          ],
+        ),
+      );
+    }
+    final phone = conversation.contactPhone;
+    if (!conversation.appointmentConfirmed || phone == null) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: AppColors.greenLight,
+      child: Row(
+        children: [
+          const BcIcon('phone', size: 16, color: AppColors.greenDark),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Rendez-vous confirmé — numéro de l\'annonceur : $phone',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.greenDark,
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: () => launchUrl(Uri.parse('tel:$phone')),
+            borderRadius: BorderRadius.circular(8),
+            child: const Padding(
+              padding: EdgeInsets.all(6),
+              child: BcIcon('phone', size: 16, color: AppColors.greenDark),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
