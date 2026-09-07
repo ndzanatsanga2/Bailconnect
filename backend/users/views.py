@@ -19,7 +19,12 @@ from users.serializers import (
     UserSerializer,
 )
 from users.services.otp import generate_and_send_otp, verify_otp
-from users.throttles import OTPRequestThrottle
+from users.throttles import (
+    LoginThrottle,
+    OTPRequestThrottle,
+    PasswordResetThrottle,
+    RegisterThrottle,
+)
 
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
@@ -33,20 +38,28 @@ def _find_user(data) -> User | None:
     return User.objects.filter(phone_number=data["phone_number"]).first()
 
 
-class RequestOTPView(APIView):
+class ThrottledResponseMixin:
+    """Réponse 429 avec message clair et délai d'attente quand une
+    throttle_class de la vue se déclenche."""
+
+    throttle_message = "Trop de tentatives."
+
+    def throttled(self, request, wait):
+        detail = (
+            f"{self.throttle_message} Réessayez dans {int(wait)} secondes."
+            if wait is not None
+            else f"{self.throttle_message} Réessayez plus tard."
+        )
+        raise Throttled(wait=wait, detail=detail)
+
+
+class RequestOTPView(ThrottledResponseMixin, APIView):
     """Envoie un code OTP — utilisé pour vérifier un compte à l'inscription
     et pour la réinitialisation du mot de passe."""
 
     permission_classes = [AllowAny]
     throttle_classes = [OTPRequestThrottle]
-
-    def throttled(self, request, wait):
-        detail = (
-            f"Trop de demandes de code. Réessayez dans {int(wait)} secondes."
-            if wait is not None
-            else "Trop de demandes de code. Réessayez plus tard."
-        )
-        raise Throttled(wait=wait, detail=detail)
+    throttle_message = "Trop de demandes de code."
 
     def post(self, request):
         if not settings.OTP_REQUIRED:
@@ -59,11 +72,13 @@ class RequestOTPView(APIView):
         return Response({"detail": "Code envoyé."})
 
 
-class RegisterView(APIView):
+class RegisterView(ThrottledResponseMixin, APIView):
     """Inscription client ou annonceur — crée le compte (avec mot de passe)
     une fois le code OTP (envoyé par SMS ou email selon otp_channel) vérifié."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [RegisterThrottle]
+    throttle_message = "Trop de tentatives d'inscription."
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -92,11 +107,13 @@ class RegisterView(APIView):
         return Response({"token": token.key, "user": UserSerializer(user).data}, status=201)
 
 
-class LoginView(APIView):
+class LoginView(ThrottledResponseMixin, APIView):
     """Connexion par mot de passe — identifiant (email ou téléphone) déjà
     enregistré. Verrouille temporairement le compte après plusieurs échecs."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [LoginThrottle]
+    throttle_message = "Trop de tentatives de connexion."
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -129,11 +146,13 @@ class LoginView(APIView):
         return Response({"token": token.key, "user": UserSerializer(user).data})
 
 
-class PasswordResetConfirmView(APIView):
+class PasswordResetConfirmView(ThrottledResponseMixin, APIView):
     """Réinitialisation du mot de passe — code OTP (envoyé via
     /otp/request/) puis nouveau mot de passe. Reconnecte l'utilisateur."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
+    throttle_message = "Trop de tentatives de réinitialisation."
 
     def post(self, request):
         if not settings.OTP_REQUIRED:

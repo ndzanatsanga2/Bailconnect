@@ -545,6 +545,118 @@ class TestBecomeAnnonceur:
         assert response.data["annonceur_type"] == "agent"
         assert response.data["role"] == "locataire"
 
+
+class TestLoginThrottle:
+    def setup_method(self):
+        cache.clear()
+
+    def teardown_method(self):
+        cache.clear()
+
+    def test_repeated_attempts_for_same_identifier_get_throttled(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000600", email="throttle-login@example.com")
+
+        for _ in range(10):
+            client.post("/api/auth/login/", {"email": "throttle-login@example.com", "password": "wrong-password1"})
+
+        response = client.post("/api/auth/login/", {"email": "throttle-login@example.com", "password": "wrong-password1"})
+
+        assert response.status_code == 429
+        assert "Trop de tentatives" in response.data["detail"]
+
+    def test_throttle_is_scoped_per_identifier(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000601", email="busy-login@example.com")
+        _register_client(client, phone="+237600000602", email="other-login@example.com")
+        for _ in range(10):
+            client.post("/api/auth/login/", {"email": "busy-login@example.com", "password": "wrong-password1"})
+
+        response = client.post("/api/auth/login/", {"email": "other-login@example.com", "password": VALID_PASSWORD})
+
+        assert response.status_code == 200
+
+
+class TestRegisterThrottle:
+    def setup_method(self):
+        cache.clear()
+
+    def teardown_method(self):
+        cache.clear()
+
+    def test_repeated_attempts_for_same_identifier_get_throttled(self):
+        client = APIClient()
+        payload = {
+            "role": "locataire", "phone_number": "+237600000700", "email": "throttle-register@example.com",
+            "code": "000000", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        }
+
+        for _ in range(10):
+            client.post("/api/auth/register/", payload)
+
+        response = client.post("/api/auth/register/", payload)
+
+        assert response.status_code == 429
+        assert "Trop de tentatives" in response.data["detail"]
+
+    def test_throttle_is_scoped_per_identifier(self):
+        client = APIClient()
+        busy_payload = {
+            "role": "locataire", "phone_number": "+237600000701", "email": "busy-register@example.com",
+            "code": "000000", "full_name": "X", "city": "Odza",
+            "password": VALID_PASSWORD, "password_confirm": VALID_PASSWORD,
+        }
+        for _ in range(10):
+            client.post("/api/auth/register/", busy_payload)
+
+        response = _register_client(client, phone="+237600000702", email="other-register@example.com")
+
+        assert response.status_code == 201
+
+
+class TestPasswordResetThrottle:
+    def setup_method(self):
+        cache.clear()
+
+    def teardown_method(self):
+        cache.clear()
+
+    def test_repeated_attempts_for_same_identifier_get_throttled(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000710", email="throttle-reset@example.com")
+        payload = {
+            "email": "throttle-reset@example.com", "code": "000000",
+            "new_password": VALID_PASSWORD, "new_password_confirm": VALID_PASSWORD,
+        }
+
+        for _ in range(10):
+            client.post("/api/auth/password/reset/confirm/", payload)
+
+        response = client.post("/api/auth/password/reset/confirm/", payload)
+
+        assert response.status_code == 429
+        assert "Trop de tentatives" in response.data["detail"]
+
+    def test_throttle_is_scoped_per_identifier(self):
+        client = APIClient()
+        _register_client(client, phone="+237600000711", email="busy-reset@example.com")
+        _register_client(client, phone="+237600000712", email="other-reset@example.com")
+        busy_payload = {
+            "email": "busy-reset@example.com", "code": "000000",
+            "new_password": VALID_PASSWORD, "new_password_confirm": VALID_PASSWORD,
+        }
+        for _ in range(10):
+            client.post("/api/auth/password/reset/confirm/", busy_payload)
+
+        _set_next_code("other-reset@example.com", "999999")
+        response = client.post("/api/auth/password/reset/confirm/", {
+            "email": "other-reset@example.com", "code": "999999",
+            "new_password": VALID_PASSWORD, "new_password_confirm": VALID_PASSWORD,
+        })
+
+        assert response.status_code == 200
+
     def test_unauthenticated_cannot_add_capacity(self):
         client = APIClient()
         response = client.post("/api/auth/capacity/annonceur/", {
