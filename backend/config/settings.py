@@ -258,6 +258,12 @@ LISTING_EXPIRY_DAYS = env.int("LISTING_EXPIRY_DAYS", default=7)
 # le temps à l'annonceur de répondre à la relance affichée dans son espace.
 LISTING_ARCHIVE_AFTER_EXPIRY_DAYS = env.int("LISTING_ARCHIVE_AFTER_EXPIRY_DAYS", default=14)
 
+# Jeton partagé protégeant POST /api/internal/run-listing-maintenance/ (voir
+# config/views.py) — déclenché par un cron externe gratuit (GitHub Actions),
+# le plan free de Render ne supportant pas les services "cron". Vide par
+# défaut : l'endpoint refuse tout appel tant qu'aucun jeton n'est configuré.
+MAINTENANCE_TOKEN = env("MAINTENANCE_TOKEN", default="")
+
 
 # Stockage média (interface abstraite : local en dev, S3-compatible en prod)
 

@@ -75,31 +75,16 @@ services:
         sync: false
       - key: ADMIN_RESET_PASSWORD
         sync: false
-
-  # Relances/archivage automatique des annonces (section E) : exécute
-  # quotidiennement expire_stale_listings (PUBLIEE -> EXPIREE sans
-  # confirmation depuis LISTING_EXPIRY_DAYS) puis archive_expired_listings
-  # (EXPIREE -> ARCHIVEE sans réponse depuis LISTING_ARCHIVE_AFTER_EXPIRY_DAYS
-  # jours de plus). N'a besoin que de l'accès à la base — pas de stockage
-  # média ni d'envoi SMS/email.
-  - type: cron
-    name: bailconnect-listing-maintenance
-    runtime: python
-    rootDir: backend
-    plan: free
-    schedule: "0 3 * * *"
-    buildCommand: pip install -r requirements.txt
-    startCommand: python manage.py expire_stale_listings && python manage.py archive_expired_listings
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: bailconnect-db
-          property: connectionString
-      - key: DJANGO_SECRET_KEY
-        sync: false
-      - key: DJANGO_DEBUG
-        value: "False"
       - key: LISTING_EXPIRY_DAYS
         sync: false
       - key: LISTING_ARCHIVE_AFTER_EXPIRY_DAYS
         sync: false
+      # Relances/archivage automatique des annonces (section E) : le plan
+      # free de Render ne supporte pas les services "cron" (le Blueprint
+      # refuse de synchroniser s'il y en a un). À la place, un déclencheur
+      # externe gratuit (GitHub Actions planifié, voir
+      # .github/workflows/listing-maintenance.yml) appelle
+      # POST /api/internal/run-listing-maintenance/ une fois par jour,
+      # protégé par ce jeton partagé (voir config/views.py).
+      - key: MAINTENANCE_TOKEN
+        generateValue: true

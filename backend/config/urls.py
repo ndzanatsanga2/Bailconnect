@@ -4,6 +4,8 @@ from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
+from config.views import RunListingMaintenanceView
+
 admin.site.site_header = "Bailconnect Admin (outil interne)"
 admin.site.site_title = "Bailconnect Admin"
 admin.site.index_title = "Debug interne — le back-office produit est dans l'app Flutter"
@@ -21,6 +23,11 @@ urlpatterns = [
     path("api/reports/", include("reports.urls")),
     path("api/admin/", include("adminapi.urls")),
     path("api/messaging/", include("messaging.urls")),
+    path(
+        "api/internal/run-listing-maintenance/",
+        RunListingMaintenanceView.as_view(),
+        name="run-listing-maintenance",
+    ),
 ]
 
 # Django Admin : outil de debug interne réservé aux superusers, jamais lié

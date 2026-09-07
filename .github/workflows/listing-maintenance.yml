@@ -1,0 +1,28 @@
+name: Listing maintenance (relance/archivage)
+
+# Remplace le service cron Render (indisponible sur le plan free) pour
+# exécuter quotidiennement expire_stale_listings puis
+# archive_expired_listings côté backend, via l'endpoint protégé
+# POST /api/internal/run-listing-maintenance/ (voir backend/config/views.py).
+#
+# Configuration requise (Settings > Secrets and variables > Actions du repo) :
+#   - Variable BACKEND_URL   : URL du service Render, ex. https://bailconnect-api.onrender.com
+#   - Secret   MAINTENANCE_TOKEN : même valeur que MAINTENANCE_TOKEN sur Render
+#     (Render Dashboard > bailconnect-api > Environment — généré automatiquement
+#     par render.yaml, à copier ici une fois le service déployé).
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  run-maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call run-listing-maintenance endpoint
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "X-Maintenance-Token: ${{ secrets.MAINTENANCE_TOKEN }}" \
+            "${{ vars.BACKEND_URL }}/api/internal/run-listing-maintenance/"
