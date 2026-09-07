@@ -196,6 +196,7 @@ class AnnonceurWebDashboard extends StatelessWidget {
                   peerName: selectedConversation!.peerName,
                   listingTitle: selectedConversation!.listingTitle,
                   onBack: onCloseConversation,
+                  isAnnonceur: true,
                 ),
         ),
       ),

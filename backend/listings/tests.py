@@ -597,3 +597,38 @@ class TestExpireStaleListingsCommand:
 
         pending.refresh_from_db()
         assert pending.status == Listing.Status.EN_ATTENTE
+
+
+class TestArchiveExpiredListingsCommand:
+    def test_archives_listings_expired_past_threshold(self, settings):
+        settings.LISTING_ARCHIVE_AFTER_EXPIRY_DAYS = 14
+        owner = make_annonceur("+237600000184")
+        listing = make_published_listing(owner=owner, title="Old expired", status=Listing.Status.EXPIREE)
+        Listing.objects.filter(id=listing.id).update(updated_at=timezone.now() - timedelta(days=20))
+
+        call_command("archive_expired_listings")
+
+        listing.refresh_from_db()
+        assert listing.status == Listing.Status.ARCHIVEE
+
+    def test_does_not_archive_recently_expired_listings(self, settings):
+        settings.LISTING_ARCHIVE_AFTER_EXPIRY_DAYS = 14
+        owner = make_annonceur("+237600000185")
+        listing = make_published_listing(owner=owner, title="Just expired", status=Listing.Status.EXPIREE)
+        Listing.objects.filter(id=listing.id).update(updated_at=timezone.now() - timedelta(days=2))
+
+        call_command("archive_expired_listings")
+
+        listing.refresh_from_db()
+        assert listing.status == Listing.Status.EXPIREE
+
+    def test_does_not_touch_published_listings(self, settings):
+        settings.LISTING_ARCHIVE_AFTER_EXPIRY_DAYS = 14
+        owner = make_annonceur("+237600000186")
+        listing = make_published_listing(owner=owner, title="Still published")
+        Listing.objects.filter(id=listing.id).update(updated_at=timezone.now() - timedelta(days=30))
+
+        call_command("archive_expired_listings")
+
+        listing.refresh_from_db()
+        assert listing.status == Listing.Status.PUBLIEE

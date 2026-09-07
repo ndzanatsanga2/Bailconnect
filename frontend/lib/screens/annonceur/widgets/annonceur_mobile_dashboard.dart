@@ -170,6 +170,7 @@ class AnnonceurMobileDashboard extends StatelessWidget {
                 peerName: selectedConversation!.peerName,
                 listingTitle: selectedConversation!.listingTitle,
                 onBack: onCloseConversation,
+                isAnnonceur: true,
               ),
       3 => AnnonceurStatsView(listings: listings, leads: leads),
       _ => AnnonceurProfilView(

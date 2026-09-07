@@ -23,5 +23,8 @@ class Command(BaseCommand):
             Q(last_confirmed_at__lt=threshold)
             | Q(last_confirmed_at__isnull=True, created_at__lt=threshold)
         )
-        count = stale.update(status=Listing.Status.EXPIREE)
+        # updated_at (auto_now) n'est pas touché par .update() : on le fixe
+        # explicitement pour dater précisément l'expiration, seul repère dont
+        # dispose archive_expired_listings pour compter le délai de relance.
+        count = stale.update(status=Listing.Status.EXPIREE, updated_at=timezone.now())
         self.stdout.write(self.style.SUCCESS(f"{count} annonce(s) expirée(s)."))

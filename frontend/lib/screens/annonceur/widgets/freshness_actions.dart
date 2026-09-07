@@ -66,21 +66,61 @@ class _FreshnessActionsState extends State<FreshnessActions> {
 
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.listing.status == 'expiree') ...[
+            _relanceBanner(),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: _actionButton(
+                  icon: 'check',
+                  label: 'Toujours disponible',
+                  onTap: confirmTap,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _actionButton(
+                  icon: 'close',
+                  label: 'Marquer louée',
+                  onTap: rentedTap,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Relance (section E.10) : purement passive — pas de canal de
+  /// notification séparé, juste rendue plus visible dans l'espace bailleur
+  /// tant que l'annonce reste EXPIREE. Sans réponse, archive_expired_listings
+  /// (tâche planifiée) l'archive au bout de LISTING_ARCHIVE_AFTER_EXPIRY_DAYS
+  /// jours supplémentaires.
+  Widget _relanceBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: [
-          Expanded(
-            child: _actionButton(
-              icon: 'check',
-              label: 'Toujours disponible',
-              onTap: confirmTap,
-            ),
-          ),
+          const BcIcon('flag', size: 13, color: AppColors.amber),
           const SizedBox(width: 8),
-          Expanded(
-            child: _actionButton(
-              icon: 'close',
-              label: 'Marquer louée',
-              onTap: rentedTap,
+          const Expanded(
+            child: Text(
+              'Annonce expirée — confirmez sa disponibilité, sinon elle sera archivée automatiquement.',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: AppColors.amber,
+              ),
             ),
           ),
         ],

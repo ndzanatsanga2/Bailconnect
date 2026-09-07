@@ -250,6 +250,11 @@ LOGGING = {
 # Fraîcheur des annonces : jours sans confirmation avant expiration auto (7-10 j)
 LISTING_EXPIRY_DAYS = env.int("LISTING_EXPIRY_DAYS", default=7)
 
+# Relance/archivage (section E) : jours supplémentaires après expiration
+# (donc sans confirmation ni location) avant archivage automatique — laisse
+# le temps à l'annonceur de répondre à la relance affichée dans son espace.
+LISTING_ARCHIVE_AFTER_EXPIRY_DAYS = env.int("LISTING_ARCHIVE_AFTER_EXPIRY_DAYS", default=14)
+
 
 # Stockage média (interface abstraite : local en dev, S3-compatible en prod)
 

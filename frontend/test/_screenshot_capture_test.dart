@@ -1,7 +1,11 @@
+import 'package:bailconnect/data/api_client.dart';
+import 'package:bailconnect/data/listing_repository.dart';
 import 'package:bailconnect/screens/admin/admin_publish_listing_screen.dart';
+import 'package:bailconnect/screens/annonceur/widgets/freshness_actions.dart';
 import 'package:bailconnect/screens/auth/register_client_screen.dart';
 import 'package:bailconnect/screens/web/web_landing_screen.dart';
 import 'package:bailconnect/screens/web/web_login_screen.dart';
+import 'package:bailconnect/theme/app_colors.dart';
 import 'package:bailconnect/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,6 +64,35 @@ void main() {
       screen: const WebLandingScreen(),
       size: const Size(1300, 900),
       goldenName: 'goldens/web_landing.png',
+    );
+  });
+
+  testWidgets('freshness actions with expiry relance banner', (tester) async {
+    await _capture(
+      tester,
+      screen: Scaffold(
+        backgroundColor: AppColors.bg,
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: FreshnessActions(
+            listing: Listing(
+              id: 1,
+              title: 'Studio meublé',
+              neighborhood: 'Bastos',
+              propertyType: 'studio',
+              rentAmount: 75000,
+              depositAmount: 0,
+              whatsappNumber: '+237600000000',
+              status: 'expiree',
+              media: const [],
+            ),
+            repository: ListingRepository(ApiClient()),
+            onChanged: () {},
+          ),
+        ),
+      ),
+      size: const Size(520, 220),
+      goldenName: 'goldens/freshness_relance_banner.png',
     );
   });
 }
