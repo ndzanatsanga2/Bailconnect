@@ -65,6 +65,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     whatsapp_number = models.CharField(max_length=20, blank=True, help_text="Contact WhatsApp des annonces — annonceur uniquement.")
     annonceur_type = models.CharField(max_length=20, choices=AnnonceurType.choices, blank=True)
     is_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(
+        default=False,
+        help_text="Compte archivé par un admin (terminal, sans suppression des données) — implique is_active=False.",
+    )
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 

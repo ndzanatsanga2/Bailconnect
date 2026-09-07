@@ -124,6 +124,13 @@ class LoginView(ThrottledResponseMixin, APIView):
         if user is None:
             return Response({"detail": INVALID_CREDENTIALS_DETAIL}, status=400)
 
+        if not user.is_active:
+            # Compte suspendu/archivé par un admin (adminapi.AdminUserViewSet) —
+            # sans ce contrôle, un token serait quand même émis puis rejeté à
+            # la première requête authentifiée (TokenAuthentication vérifie
+            # is_active), ce qui est une UX confuse.
+            return Response({"detail": "Compte désactivé. Contactez l'administrateur."}, status=403)
+
         if user.login_locked_until and user.login_locked_until > timezone.now():
             return Response(
                 {"detail": "Compte temporairement bloqué suite à plusieurs tentatives. Réessayez plus tard."},

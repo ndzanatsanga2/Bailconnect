@@ -3,12 +3,17 @@ from datetime import timedelta
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
-from rest_framework import filters, pagination, parsers, permissions, viewsets
+from rest_framework import filters, mixins, pagination, parsers, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from adminapi.serializers import AdminInvitationSerializer, AdminListingSerializer, AdminReportSerializer
+from adminapi.serializers import (
+    AdminInvitationSerializer,
+    AdminListingSerializer,
+    AdminReportSerializer,
+    AdminUserSerializer,
+)
 from invitations.models import Invitation
 from invitations.services import create_invitation
 from listings.models import Listing
@@ -16,7 +21,6 @@ from listings.serializers import ListingMediaSerializer
 from reports.models import Report
 from users.models import User
 from users.permissions import IsAdminRole
-from users.serializers import UserSerializer
 
 TREND_DAYS = 14
 
@@ -123,8 +127,18 @@ class AdminListingViewSet(viewsets.ModelViewSet):
         return Response(status=204)
 
 
-class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = UserSerializer
+class AdminUserViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Gestion des profils : modification des champs de contact, suspension/
+    réactivation, archivage et suppression. Pas de création ici — les
+    comptes se créent par inscription ou invitation."""
+
+    serializer_class = AdminUserSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminRole]
     pagination_class = AdminPageNumberPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -138,6 +152,53 @@ class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
         if role:
             qs = qs.filter(role=role)
         return qs
+
+    def _forbid_self_action(self, request, target):
+        if target.id == request.user.id:
+            return Response({"detail": "Vous ne pouvez pas effectuer cette action sur votre propre compte."}, status=400)
+        return None
+
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, pk=None):
+        user = self.get_object()
+        if (denied := self._forbid_self_action(request, user)) is not None:
+            return denied
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+        return Response(AdminUserSerializer(user).data)
+
+    @action(detail=True, methods=["post"])
+    def reactivate(self, request, pk=None):
+        user = self.get_object()
+        user.is_active = True
+        user.is_archived = False
+        user.save(update_fields=["is_active", "is_archived"])
+        return Response(AdminUserSerializer(user).data)
+
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        user = self.get_object()
+        if (denied := self._forbid_self_action(request, user)) is not None:
+            return denied
+        user.is_active = False
+        user.is_archived = True
+        user.save(update_fields=["is_active", "is_archived"])
+        return Response(AdminUserSerializer(user).data)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        denied = self._forbid_self_action(request, user)
+        if denied is not None:
+            return denied
+        # Mêmes fuites de fichiers orphelins sur R2/local que pour la
+        # suppression directe d'une annonce (AdminListingViewSet.destroy) —
+        # la suppression cascade des annonces du compte ne nettoie pas leurs
+        # médias sur le stockage.
+        for listing in user.listings.all():
+            for media in listing.media.all():
+                media.file.delete(save=False)
+        self.perform_destroy(user)
+        return Response(status=204)
 
 
 class AdminInvitationViewSet(viewsets.ReadOnlyModelViewSet):

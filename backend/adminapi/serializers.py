@@ -4,6 +4,8 @@ from invitations.models import Invitation
 from listings.models import Amenity, Listing
 from listings.serializers import ListingMediaSerializer
 from reports.models import Report
+from users.models import User
+from users.serializers import normalize_phone_number
 
 
 class AdminListingSerializer(serializers.ModelSerializer):
@@ -45,6 +47,25 @@ class AdminInvitationSerializer(serializers.ModelSerializer):
             "created_at", "expires_at", "used_at",
         ]
         read_only_fields = fields
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Vue admin d'un profil : lecture complète (y compris is_active/
+    is_archived), mais seuls les champs de contact/profil sont modifiables
+    ici — rôle, capacité annonceur et statut passent par les actions
+    dédiées (suspend/reactivate/archive) pour rester traçables."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "phone_number", "email", "full_name", "role", "is_annonceur",
+            "city", "whatsapp_number", "annonceur_type", "date_joined",
+            "is_active", "is_archived",
+        ]
+        read_only_fields = ["id", "role", "is_annonceur", "date_joined", "is_active", "is_archived"]
+
+    def validate_phone_number(self, value):
+        return normalize_phone_number(value) if value else value
 
 
 class AdminReportSerializer(serializers.ModelSerializer):

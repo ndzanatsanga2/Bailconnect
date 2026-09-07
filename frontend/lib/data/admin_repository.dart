@@ -156,6 +156,8 @@ class AdminUser {
   final String? email;
   final String fullName;
   final String role;
+  final bool isActive;
+  final bool isArchived;
 
   AdminUser({
     required this.id,
@@ -163,6 +165,8 @@ class AdminUser {
     this.email,
     required this.fullName,
     required this.role,
+    this.isActive = true,
+    this.isArchived = false,
   });
 
   factory AdminUser.fromJson(Map<String, dynamic> json) => AdminUser(
@@ -171,6 +175,8 @@ class AdminUser {
     email: json['email'] as String?,
     fullName: json['full_name'] as String? ?? '',
     role: json['role'] as String,
+    isActive: json['is_active'] as bool? ?? true,
+    isArchived: json['is_archived'] as bool? ?? false,
   );
 }
 
@@ -376,6 +382,31 @@ class AdminRepository {
       count: data['count'] as int,
     );
   }
+
+  Future<AdminUser> updateUser(
+    int id, {
+    String? fullName,
+    String? phoneNumber,
+    String? email,
+    String? city,
+    String? whatsappNumber,
+    String? annonceurType,
+  }) async {
+    final data = await _api.patch('/api/admin/users/$id/', {
+      'full_name': ?fullName,
+      'phone_number': ?phoneNumber,
+      'email': ?email,
+      'city': ?city,
+      'whatsapp_number': ?whatsappNumber,
+      'annonceur_type': ?annonceurType,
+    });
+    return AdminUser.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<void> suspendUser(int id) => _api.post('/api/admin/users/$id/suspend/', {});
+  Future<void> reactivateUser(int id) => _api.post('/api/admin/users/$id/reactivate/', {});
+  Future<void> archiveUser(int id) => _api.post('/api/admin/users/$id/archive/', {});
+  Future<void> deleteUser(int id) => _api.delete('/api/admin/users/$id/');
 
   Future<AdminPage<AdminInvitation>> invitationsPage({int page = 1}) async {
     final data =
